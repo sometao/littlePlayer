@@ -93,6 +93,8 @@ message(SWSCALE_LIBRARY=${SWSCALE_LIBRARY})
 ############################################
 add_executable (${PROJECT_NAME} 
 	src/main.cpp
+	src/pch.cpp
+	src/FrameGrabber.cpp
 )
 
 

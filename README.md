@@ -4,11 +4,12 @@
 #### Goal
 Project for learning FFmpeg with C++.
 
-#### Feature:
+#### Feature
 Read file and play. 
 
 #### Constraint 
 1. FFmpeg latest API
+1. Imitate JavaCV API
 1. SDL2
 1. C++11  
 1. Video only
