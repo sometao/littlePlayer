@@ -1,0 +1,7 @@
+# Visual Studio generated .clang-format file
+
+BasedOnStyle: Google
+
+ColumnLimit: 100
+
+SortIncludes: false 
