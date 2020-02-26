@@ -34,17 +34,19 @@ class FrameGrabber {
   string videoCondecName = "Unknown";
   AVFormatContext* pFormatCtx = nullptr;
   AVCodecContext* pCodecCtx = nullptr;
+  AVPacket* packet = (AVPacket*)av_malloc(sizeof(AVPacket));
 
 
 
  public:
   FrameGrabber(const string& uri);
-  int start();
+  void start();
   int getWidth() const;
   int getHeight() const;
   int getVideoCodecId() const;
-  const string getVideoCodecName()  const;
+  string getVideoCodecName()  const;
+  int getPixelFormat()  const;
   double getFrameRate();
-  int grab(AVFrame* frame);
+  int grabImageFrame(AVFrame* pFrame);
   void close();
 };
