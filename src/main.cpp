@@ -7,11 +7,9 @@ using std::cout;
 using std::endl;
 using std::string;
 
-void writeY420pData(std::ofstream& os, unsigned char* data, int linesize, int width, int height) {
-  char* p = reinterpret_cast<char*>(data);
-  for (int i = 0; i < height; i++) {
-    os.write(p + (__int64)i * linesize, width);
-  }
+namespace ffmpegUtil {
+extern void writeY420pFrame(std::ofstream& os, AVFrame* frame);
+
 }
 
 void testReadFileInfo() {
@@ -42,11 +40,7 @@ void testReadFileInfo() {
     cout << "height: " << height << endl;
 
     while (grabber.grabImageFrame(frame) == 0) {
-      writeY420pData(os, frame->data[0], frame->linesize[0], width, height);
-      writeY420pData(os, frame->data[1], frame->linesize[1], width/2, height/2);
-      writeY420pData(os, frame->data[2], frame->linesize[2], width/2, height/2);
-
-
+      ffmpegUtil::writeY420pFrame(os, frame);
       count += 1;
       if (count % 10 == 0) {
         cout << "image frame count:" << count << endl;

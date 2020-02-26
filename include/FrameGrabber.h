@@ -35,7 +35,7 @@ class FrameGrabber {
   AVFormatContext* pFormatCtx = nullptr;
   AVCodecContext* pCodecCtx = nullptr;
   AVPacket* packet = (AVPacket*)av_malloc(sizeof(AVPacket));
-
+  bool fileGotToEnd = false;
 
 
  public:
@@ -48,5 +48,6 @@ class FrameGrabber {
   int getPixelFormat()  const;
   double getFrameRate();
   int grabImageFrame(AVFrame* pFrame);
+  int grabImageFrame_bkp(AVFrame* pFrame);
   void close();
 };

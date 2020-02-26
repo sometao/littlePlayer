@@ -126,6 +126,67 @@ double FrameGrabber::getFrameRate() {
  *      negative values: error;
  */
 int FrameGrabber::grabImageFrame(AVFrame* pFrame) {
+  int ret = -1;
+
+  EasyWay::printDebug("avcodec_receive_frame ret == AVERROR(EAGAIN)");
+  while (true) {
+    if (!fileGotToEnd && av_read_frame(pFormatCtx, packet) >= 0) {
+      if (packet->stream_index == videoIndex) {
+        // feed video packet to codec.
+        ret = avcodec_send_packet(pCodecCtx, packet);
+        if (ret == 0) {
+          av_free_packet(packet);
+          EasyWay::printDebug("avcodec_send_packet success.");
+          break;
+        } else if (ret == AVERROR(EAGAIN)) {
+          // buff full, do nothing.
+        } else {
+          string errorMsg = "avcodec_send_packet error: ";
+          errorMsg += ret;
+          cout << errorMsg << endl;
+          throw std::runtime_error(errorMsg);
+        }
+      } else {
+        // skip Non-video packet.
+        EasyWay::printDebug("av_read_frame skip Non-video packet.");
+        av_free_packet(packet);
+      }
+    } else {
+      // file got error or end.
+      EasyWay::printDebug("av_read_frame ret < 0");
+      fileGotToEnd = true;
+      avcodec_send_packet(pCodecCtx, nullptr);
+      break;
+    }
+  }
+
+  ret = avcodec_receive_frame(pCodecCtx, pFrame);
+  if (ret == 0) {
+    EasyWay::printDebug("avcodec_receive_frame ret == 0");
+    return 0;
+  }  else if (ret == AVERROR_EOF) {
+    cout << "no more output frames." << endl;
+    return 1;
+  } else if (ret == AVERROR(EAGAIN)) {
+    string errorMsg = "avcodec_receive_frame EAGAIN, it should never happen. ";
+    errorMsg += ret;
+    cout << errorMsg << endl;
+    throw std::runtime_error(errorMsg);
+  } else {
+    string errorMsg = "avcodec_receive_frame error: ";
+    errorMsg += ret;
+    cout << errorMsg << endl;
+    throw std::runtime_error(errorMsg);
+  }
+}
+
+/*
+ * @return
+ *      0: success, a frame was returned
+ *      1: the decoder has been fully flushed, and there will be no more output frames
+ *      negative values: error;
+ */
+int FrameGrabber::grabImageFrame_bkp(AVFrame* pFrame) {
   int got_picture = 0;
 
   int ret = -1;
