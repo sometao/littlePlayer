@@ -12,6 +12,8 @@ extern void writeY420pFrame(std::ofstream& os, AVFrame* frame);
 
 }
 
+extern void playVideo(const char* inputPath);
+
 void testReadFileInfo() {
   string inputFile = "D:/data/video/VID_20181123_214724.mp4";
   string outputFile = "tempout001.yuv";
@@ -56,9 +58,18 @@ void testReadFileInfo() {
   cout << "DONE." << endl;
 }
 
+
+void readPixelFileAndShow() {
+  const char* inputPath = "tempout001.yuv";
+  playVideo(inputPath);
+}
+
 int main(int argc, char* argv[]) {
   cout << "hello, little player." << endl;
 
-  testReadFileInfo();
+  //testReadFileInfo();
+
+  readPixelFileAndShow();
+
   return 0;
 }

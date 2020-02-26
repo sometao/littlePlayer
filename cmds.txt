@@ -1,0 +1,4 @@
+
+
+ffplay -i tempout001.yuv -pixel_format yuv420p -video_size 1920*1080
+

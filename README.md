@@ -18,9 +18,9 @@ Read file and play.
 
 
 #### Steps
-- [ ] Read media file and transfer it to pixel format file.
-- [ ] Play pixel format file using ffplay.
-- [ ] Read pixel format file and draw data on SDL.
+- [X] Read media file and transfer it to pixel format file.
+- [X] Play pixel format file using ffplay.
+- [X] Read pixel format file and draw data on SDL.
 - [ ] Read media file and draw picture using SDL.
 - [ ] Deal with audio.
 
