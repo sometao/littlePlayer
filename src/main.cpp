@@ -59,8 +59,9 @@ void testReadFileInfo() {
 }
 
 
-void readPixelFileAndShow() {
-  const char* inputPath = "tempout001.yuv";
+void testPlayer() {
+  const char* inputPath = "D:/data/video/VID_20181123_214724.mp4";
+  //const char* inputPath = "tempout001.yuv";
   playVideo(inputPath);
 }
 
@@ -69,7 +70,7 @@ int main(int argc, char* argv[]) {
 
   //testReadFileInfo();
 
-  readPixelFileAndShow();
+  testPlayer();
 
   return 0;
 }

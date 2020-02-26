@@ -110,7 +110,6 @@ int FrameGrabber::getPixelFormat() const {
 
 double FrameGrabber::getFrameRate() {
   if (pCodecCtx != nullptr) {
-    return static_cast<int>(pCodecCtx->pix_fmt);
     double numerator = pCodecCtx->framerate.num;
     double denominator = pCodecCtx->framerate.den;
     return numerator / denominator;
@@ -135,7 +134,7 @@ int FrameGrabber::grabImageFrame(AVFrame* pFrame) {
         // feed video packet to codec.
         ret = avcodec_send_packet(pCodecCtx, packet);
         if (ret == 0) {
-          av_free_packet(packet);
+          av_packet_unref(packet);
           EasyWay::printDebug("avcodec_send_packet success.");
           break;
         } else if (ret == AVERROR(EAGAIN)) {
@@ -149,7 +148,7 @@ int FrameGrabber::grabImageFrame(AVFrame* pFrame) {
       } else {
         // skip Non-video packet.
         EasyWay::printDebug("av_read_frame skip Non-video packet.");
-        av_free_packet(packet);
+        av_packet_unref(packet);
       }
     } else {
       // file got error or end.
@@ -203,7 +202,7 @@ int FrameGrabber::grabImageFrame_bkp(AVFrame* pFrame) {
           if (packet->stream_index == videoIndex) {
             // feed video packet to codec.
             if (avcodec_send_packet(pCodecCtx, packet) == 0) {
-              av_free_packet(packet);
+              av_packet_unref(packet);
               EasyWay::printDebug("avcodec_send_packet success.");
               break;
             } else {
@@ -215,7 +214,7 @@ int FrameGrabber::grabImageFrame_bkp(AVFrame* pFrame) {
           } else {
             // skip Non-video packet.
             EasyWay::printDebug("av_read_frame skip Non-video packet.");
-            av_free_packet(packet);
+            av_packet_unref(packet);
           }
         } else {
           // file got error or end.
@@ -238,5 +237,14 @@ int FrameGrabber::grabImageFrame_bkp(AVFrame* pFrame) {
 }
 
 void FrameGrabber::close() {
+
+
+
+  // It seems like only one xxx_free_context can be called.
+  // Which one should be called?
+  avformat_free_context(pFormatCtx);
+  //avcodec_free_context(&pCodecCtx);
+
+
   // TODO implement.
 }
