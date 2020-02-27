@@ -22,6 +22,7 @@ Read file and play.
 - [X] Play pixel format file using ffplay.
 - [X] Read pixel format file and draw data on SDL.
 - [X] Read media file and draw picture using SDL.
-- [ ] Deal with audio.
+- [ ] Read mp3 file and play it.
+- [ ] Play video with audio.
 
 

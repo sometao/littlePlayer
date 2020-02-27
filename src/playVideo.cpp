@@ -245,6 +245,10 @@ void playMediaFile(const string& inputPath) {
   grabber.close();
 }
 
+void playMp3File(const string& inputPath) {
+
+}
+
 }  // namespace
 
 void playVideo(const char* inputPath) {

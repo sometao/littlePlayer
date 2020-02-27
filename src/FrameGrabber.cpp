@@ -10,64 +10,6 @@ FrameGrabber::FrameGrabber(const string& uri) : inputUrl(uri) {
   pFormatCtx = avformat_alloc_context();
 }
 
-void FrameGrabber::start() {
-  if (avformat_open_input(&pFormatCtx, inputUrl.c_str(), NULL, NULL) != 0) {
-    string errorMsg = "Can not open input file:";
-    errorMsg += inputUrl;
-    cout << errorMsg << endl;
-    throw std::runtime_error(errorMsg);
-  }
-
-  if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
-    string errorMsg = "Can not find stream information in input file:";
-    errorMsg += inputUrl;
-    cout << errorMsg << endl;
-    throw std::runtime_error(errorMsg);
-  }
-
-  for (int i = 0; i < pFormatCtx->nb_streams; i++) {
-    if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-      videoIndex = i;
-      cout << "file video stream: [" << i << "] type: ["
-           << pFormatCtx->streams[i]->codec->codec_type << "]" << endl;
-      break;
-    }
-  }
-
-  if (videoIndex == -1) {
-    string errorMsg = "Do not find a video stream in file: ";
-    errorMsg += inputUrl;
-    cout << errorMsg << endl;
-    throw std::runtime_error(errorMsg);
-  }
-
-  pCodecCtx = pFormatCtx->streams[videoIndex]->codec;
-  AVCodec* pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
-
-  if (pCodec == nullptr) {
-    string errorMsg = "Could not find codec: ";
-    errorMsg += pCodecCtx->codec_id;
-    cout << errorMsg << endl;
-    throw std::runtime_error(errorMsg);
-  }
-
-  if (avcodec_open2(pCodecCtx, pCodec, nullptr) < 0) {
-    string errorMsg = "Could not open codec: ";
-    errorMsg += pCodec->name;
-    cout << errorMsg << endl;
-    throw std::runtime_error(errorMsg);
-  }
-
-  cout << "[" << pCodecCtx->codec->name << "] codec context initialize success." << endl;
-
-  // Output Info-----------------------------
-  cout << "--------------- File Information ----------------" << endl;
-  av_dump_format(pFormatCtx, videoIndex, inputUrl.c_str(), 0);
-  cout << "-------------------------------------------------\n" << endl;
-
-  packet = (AVPacket*)av_malloc(sizeof(AVPacket));
-}
-
 int FrameGrabber::getWidth() const {
   if (pCodecCtx != nullptr) {
     return pCodecCtx->width;
@@ -117,6 +59,74 @@ double FrameGrabber::getFrameRate() {
     return -1.0;
   }
 }
+
+void FrameGrabber::start() {
+  if (avformat_open_input(&pFormatCtx, inputUrl.c_str(), NULL, NULL) != 0) {
+    string errorMsg = "Can not open input file:";
+    errorMsg += inputUrl;
+    cout << errorMsg << endl;
+    throw std::runtime_error(errorMsg);
+  }
+
+  if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
+    string errorMsg = "Can not find stream information in input file:";
+    errorMsg += inputUrl;
+    cout << errorMsg << endl;
+    throw std::runtime_error(errorMsg);
+  }
+
+  for (int i = 0; i < pFormatCtx->nb_streams; i++) {
+    if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+      videoIndex = i;
+      cout << "file video stream: [" << i << "] type: ["
+           << pFormatCtx->streams[i]->codec->codec_type << "]" << endl;
+      break;
+    }
+  }
+
+  if (videoIndex == -1) {
+    string errorMsg = "Do not find a video stream in file: ";
+    errorMsg += inputUrl;
+    cout << errorMsg << endl;
+    throw std::runtime_error(errorMsg);
+  }
+
+  AVCodec* pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
+
+  if (pCodec == nullptr) {
+    string errorMsg = "Could not find codec: ";
+    errorMsg += pCodecCtx->codec_id;
+    cout << errorMsg << endl;
+    throw std::runtime_error(errorMsg);
+  }
+
+  pCodecCtx = avcodec_alloc_context3(pCodec);
+
+  if (avcodec_parameters_to_context(pCodecCtx, pFormatCtx->streams[videoIndex]->codecpar) != 0) {
+    string errorMsg = "Could not copy codec context: ";
+    errorMsg += pCodec->name;
+    cout << errorMsg << endl;
+    throw std::runtime_error(errorMsg);
+  }
+
+  if (avcodec_open2(pCodecCtx, pCodec, nullptr) < 0) {
+    string errorMsg = "Could not open codec: ";
+    errorMsg += pCodec->name;
+    cout << errorMsg << endl;
+    throw std::runtime_error(errorMsg);
+  }
+
+  cout << "[" << pCodecCtx->codec->name << "] codec context initialize success." << endl;
+
+  // Output Info-----------------------------
+  cout << "--------------- File Information ----------------" << endl;
+  av_dump_format(pFormatCtx, videoIndex, inputUrl.c_str(), 0);
+  cout << "-------------------------------------------------\n" << endl;
+
+  packet = (AVPacket*)av_malloc(sizeof(AVPacket));
+}
+
+
 
 /*
  * @return
