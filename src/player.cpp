@@ -136,7 +136,9 @@ void playYuvFile(const char* inputPath) {
 }
 
 void playMediaFile(const string& inputPath) {
-  FrameGrabber grabber{inputPath};
+
+
+  FrameGrabber grabber{inputPath, true, false};
 
   //--------------------- GET SDL READY -------------------
 
@@ -186,6 +188,8 @@ void playMediaFile(const string& inputPath) {
 
     int timeInterval = (int)grabber.getFrameRate();
 
+    cout << "timeInterval: " << timeInterval << endl;
+
     SDL_Thread* refresh_thread =
         SDL_CreateThread(refreshPicture, "refreshPictureThread", &timeInterval);
 
@@ -196,9 +200,9 @@ void playMediaFile(const string& inputPath) {
     while (true) {
       if (!videoFinish) {
         ret = grabber.grabImageFrame(frame);
-        if (ret == 0) {  // success.
+        if (ret == 1) {  // success.
           ffmpegUtil::writeY420pFrame2Buffer(reinterpret_cast<char*>(buffer), frame);
-        } else if (ret == 1) {  // no more frame.
+        } else if (ret == 0) {  // no more frame.
           cout << "VIDEO FINISHED." << endl;
           videoFinish = true;
           SDL_Event finishEvent;
@@ -209,6 +213,9 @@ void playMediaFile(const string& inputPath) {
           cout << errMsg << endl;
           throw std::runtime_error(errMsg);
         }
+      } else {
+        thread_exit = 1;
+        break;
       }
 
       // WAIT USER EVENT.
@@ -245,9 +252,7 @@ void playMediaFile(const string& inputPath) {
   grabber.close();
 }
 
-void playMp3File(const string& inputPath) {
-
-}
+void playMp3File(const string& inputPath) {}
 
 }  // namespace
 

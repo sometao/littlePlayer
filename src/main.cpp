@@ -41,7 +41,7 @@ void testReadFileInfo() {
     int width = grabber.getWidth();
     cout << "height: " << height << endl;
 
-    while (grabber.grabImageFrame(frame) == 0) {
+    while (grabber.grabImageFrame(frame) == 1) {
       ffmpegUtil::writeY420pFrame(os, frame);
       count += 1;
       if (count % 10 == 0) {
@@ -63,6 +63,7 @@ void testPlayer() {
   const char* inputPath = "D:/data/video/VID_20181123_214724.mp4";
   //const char* inputPath = "tempout001.yuv";
   playVideo(inputPath);
+
 }
 
 int main(int argc, char* argv[]) {

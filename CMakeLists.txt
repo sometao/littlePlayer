@@ -96,7 +96,7 @@ add_executable (${PROJECT_NAME}
 	src/pch.cpp
 	src/FrameGrabber.cpp
 	src/ffmpegUtil.cpp
-	src/playVideo.cpp
+	src/player.cpp
 )
 
 

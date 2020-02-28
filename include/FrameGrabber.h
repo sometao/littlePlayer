@@ -29,17 +29,30 @@ using std::string;
 class FrameGrabber {
   
   const string inputUrl;
+
+  const bool videoEnabled;
+  const bool audioEnabled;
+
   int videoCodecId = -1;
+  int audioCodecId = -1;
+  
   int videoIndex = -1;
+  int audioIndex = -1;
+
   string videoCondecName = "Unknown";
-  AVFormatContext* pFormatCtx = nullptr;
-  AVCodecContext* pCodecCtx = nullptr;
+  AVFormatContext* formatCtx = nullptr;
+  AVCodecContext* vCodecCtx = nullptr;
+  AVCodecContext* aCodecCtx = nullptr;
   AVPacket* packet = (AVPacket*)av_malloc(sizeof(AVPacket));
   bool fileGotToEnd = false;
+  int grabFrameByType(AVFrame* pFrame, AVMediaType mediaType);
+
+
+  static void initCodecContext(AVFormatContext* f, int streamIndex, AVCodecContext** ctx);
 
 
  public:
-  FrameGrabber(const string& uri);
+  FrameGrabber(const string& uri, bool enableVideo = true, bool enableAudio = true);
   void start();
   int getWidth() const;
   int getHeight() const;
@@ -47,6 +60,8 @@ class FrameGrabber {
   string getVideoCodecName()  const;
   int getPixelFormat()  const;
   double getFrameRate();
+  int grabAudioFrame(AVFrame* pFrame);
+  int grabFrame(AVFrame* pFrame);
   int grabImageFrame(AVFrame* pFrame);
   int grabImageFrame_bkp(AVFrame* pFrame);
   void close();

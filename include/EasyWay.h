@@ -6,7 +6,7 @@
 #include <vector>
 
 
-//#define DEBUG_LOG
+#define DEBUG_LOG
 
 class EasyWay {
 
