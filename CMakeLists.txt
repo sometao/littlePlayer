@@ -54,6 +54,17 @@ set(SDL_INCLUDE_DIR "C:/tools/SDL2-2.0.10/include")
 set(SDL_LIBRARY "C:/tools/SDL2-2.0.10/lib/x64/SDL2.lib")
 
 
+
+######################################
+#  OpenAL lib setting
+######################################
+#make sure openAL32.dll is in your PATH.
+
+set(OpenAL_INCLUDE_DIR "C:/Program Files (x86)/OpenAL 1.1 SDK/include")
+set(OpenAL_LIBRARY "C:/Program Files (x86)/OpenAL 1.1 SDK/libs/Win64/OpenAL32.lib")
+
+
+
 ######################################
 #  information
 ######################################
@@ -97,6 +108,7 @@ add_executable (${PROJECT_NAME}
 	src/FrameGrabber.cpp
 	src/ffmpegUtil.cpp
 	src/player.cpp
+	src/playAudio.cpp
 )
 
 
@@ -112,6 +124,8 @@ target_include_directories( ${PROJECT_NAME}
 		${SWRESAMPLE_INCLUDE_DIR}
 		${SWSCALE_INCLUDE_DIR}
 		${SDL_INCLUDE_DIR}
+		${OpenAL_INCLUDE_DIR}
+
 )
 
 target_link_libraries( ${PROJECT_NAME}  
@@ -125,6 +139,8 @@ target_link_libraries( ${PROJECT_NAME}
 		${SWRESAMPLE_LIBRARY}
 		${SWSCALE_LIBRARY}
 		${SDL_LIBRARY}
+		${OpenAL_LIBRARY}
+
 )
 
 

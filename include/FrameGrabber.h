@@ -27,7 +27,6 @@ extern "C" {
 using std::string;
 
 class FrameGrabber {
-  
   const string inputUrl;
 
   const bool videoEnabled;
@@ -35,7 +34,7 @@ class FrameGrabber {
 
   int videoCodecId = -1;
   int audioCodecId = -1;
-  
+
   int videoIndex = -1;
   int audioIndex = -1;
 
@@ -47,19 +46,31 @@ class FrameGrabber {
   bool fileGotToEnd = false;
   int grabFrameByType(AVFrame* pFrame, AVMediaType mediaType);
 
-
   static void initCodecContext(AVFormatContext* f, int streamIndex, AVCodecContext** ctx);
-
 
  public:
   FrameGrabber(const string& uri, bool enableVideo = true, bool enableAudio = true);
   void start();
+
+  AVCodecContext* getAudioContext() const;
+
+  int getVideoCodecId() const;
+  string getVideoCodecName() const;
+
+  int getPixelFormat() const;
+  double getFrameRate() const;
+
   int getWidth() const;
   int getHeight() const;
-  int getVideoCodecId() const;
-  string getVideoCodecName()  const;
-  int getPixelFormat()  const;
-  double getFrameRate();
+
+  int getAudioCodecId() const;
+  string getAudioCodecName() const;
+
+  int getSampleRate() const;
+  int getSampleFormat() const;
+  int getChannleLayout() const;
+  int getChannels() const;
+
   int grabAudioFrame(AVFrame* pFrame);
   int grabFrame(AVFrame* pFrame);
   int grabImageFrame(AVFrame* pFrame);

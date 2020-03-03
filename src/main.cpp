@@ -33,7 +33,6 @@ void testReadFileInfo() {
     AVFrame* frame = av_frame_alloc();
 
     int count = 0;
-    // TODO go on test write YUV file.
 
     std::ofstream os{outputFile, std::ios::binary};
 
@@ -60,10 +59,24 @@ void testReadFileInfo() {
 
 
 void testPlayer() {
-  const char* inputPath = "D:/data/video/VID_20181123_214724.mp4";
+  //const char* inputPath = "D:/data/video/VID_20181123_214724.mp4";
+  //const char* inputPath = "D:/data/video/v1_out10.mp4";
+  //const char* inputPath = "D:/data/video/p3_out1.mp4";
+  const char* inputPath = "D:/media/Music/test/MyLove.mp3";
   //const char* inputPath = "tempout001.yuv";
   playVideo(inputPath);
 
+}
+
+
+extern int playAudio(const string& input);
+
+void testAudio() {
+
+  cout << "hello, audio." << endl;
+  const char* inputPath = "D:/media/Music/test/MyLove.mp3";
+
+  playAudio(inputPath);
 }
 
 int main(int argc, char* argv[]) {
@@ -71,7 +84,8 @@ int main(int argc, char* argv[]) {
 
   //testReadFileInfo();
 
-  testPlayer();
+  //testPlayer();
+  testAudio();
 
   return 0;
 }
