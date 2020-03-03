@@ -72,6 +72,7 @@ class FrameGrabber {
   int getChannels() const;
 
   int grabAudioFrame(AVFrame* pFrame);
+  int grabAudioFrame_bkp(AVFrame* pFrame);
   int grabFrame(AVFrame* pFrame);
   int grabImageFrame(AVFrame* pFrame);
   int grabImageFrame_bkp(AVFrame* pFrame);

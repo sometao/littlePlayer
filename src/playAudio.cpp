@@ -12,7 +12,7 @@ extern "C" {
 #include <libswresample/swresample.h>
 }
 
-#define NUMBUFFERS (4)
+#define NUMBUFFERS (12)
 #define SERVICE_UPDATE_PERIOD (20)
 
 namespace {
@@ -42,14 +42,16 @@ int initSource(ALuint* pSource) {
   alSourcei(uiSource, AL_LOOPING, AL_FALSE);
 }
 
-
 int allocOutDataBuf(uint8_t** outData, AVFrame* frame, int outSampleRate, int outChannels,
                     int bytePerOutSample) {
   int guessOutSamplesPerChannel =
       av_rescale_rnd(frame->nb_samples, outSampleRate, frame->sample_rate, AV_ROUND_UP);
   int guessOutSize = guessOutSamplesPerChannel * outChannels * bytePerOutSample;
 
-  guessOutSize *= 10;  // Just make sure...
+  cout << "GuessOutSamplesPerChannel: " << guessOutSamplesPerChannel << endl;
+  cout << "GuessOutSize: " << guessOutSize << endl;
+
+  guessOutSize *= 1.2;  // Just make sure...
 
   *outData = (uint8_t*)av_malloc(sizeof(uint8_t) * guessOutSize);
   // av_samples_alloc(&outData, NULL, outChannels, guessOutSamplesPerChannel, AV_SAMPLE_FMT_S16, 0);
@@ -57,10 +59,9 @@ int allocOutDataBuf(uint8_t** outData, AVFrame* frame, int outSampleRate, int ou
 }
 
 void feedAudioData(FrameGrabber* grabber, ALuint uiSource, ALuint alBufferId) {
-  static SwrContext* swr = nullptr;
+  static struct SwrContext* swr = nullptr;
   static AVFrame* aFrame = av_frame_alloc();
   static int outBufferSize = 0;
-
   static uint8_t* outBuffer = nullptr;
 
   int64_t outLayout = AV_CH_LAYOUT_STEREO;
@@ -74,8 +75,20 @@ void feedAudioData(FrameGrabber* grabber, ALuint uiSource, ALuint alBufferId) {
   AVSampleFormat inFormat = AVSampleFormat(grabber->getSampleFormat());
 
   if (swr == nullptr) {
-    swr = swr_alloc_set_opts(nullptr, outLayout, AV_SAMPLE_FMT_S16, outSampleRate, inLayout,
-                             inFormat, inSampleRate, 0, nullptr);
+    cout << "+++++++++++++++++++++  IN  +++++++++++++++++" << endl;
+    cout << "layout: " << inLayout << endl;
+    cout << "fmt: " << inFormat << endl;
+    cout << "sampleRate: " << inSampleRate << endl;
+
+    cout << "+++++++++++++++++++++  OUT  +++++++++++++++++" << endl;
+    cout << "layout: " << outLayout << endl;
+    cout << "fmt: " << outFormat << endl;
+    cout << "sampleRate: " << outSampleRate << endl;
+
+    swr = swr_alloc();
+
+    swr = swr_alloc_set_opts(swr, outLayout, AV_SAMPLE_FMT_S16, outSampleRate, inLayout, inFormat,
+                             inSampleRate, 0, nullptr);
     if (swr_init(swr)) {
       throw std::runtime_error("swr_init error.");
     }
@@ -83,11 +96,10 @@ void feedAudioData(FrameGrabber* grabber, ALuint uiSource, ALuint alBufferId) {
 
   unsigned long ulFormat = 0;
 
-  if (aFrame->channels == 2) {
-    ulFormat = AL_FORMAT_STEREO16;
-
-  } else {
+  if (aFrame->channels == 1) {
     ulFormat = AL_FORMAT_MONO16;
+  } else {
+    ulFormat = AL_FORMAT_STEREO16;
   }
 
   int ret = grabber->grabAudioFrame(aFrame);
@@ -101,30 +113,37 @@ void feedAudioData(FrameGrabber* grabber, ALuint uiSource, ALuint alBufferId) {
       memset(outBuffer, 0, outBufferSize);
     }
 
-    int outSamples = swr_convert(swr, &outBuffer, outBufferSize, (const uint8_t**)&aFrame->data[0], inSamples);
+    int outSamples =
+        swr_convert(swr, &outBuffer, outBufferSize, (const uint8_t**)&aFrame->data[0], inSamples);
 
-
-    cout << "outSamples:" << outSamples << endl;
     if (outSamples <= 0) {
       throw std::runtime_error("error: outSamples=" + outSamples);
     }
 
-
-    int outDataSize = av_samples_get_buffer_size(NULL, outChannels, outSamples,
-                                                 AVSampleFormat(aFrame->format), 1);
+    int outDataSize = av_samples_get_buffer_size(NULL, outChannels, outSamples, outFormat, 1);
 
 
-
-    cout << "outDataSize:" << outDataSize << endl;
 
     if (outDataSize <= 0) {
       throw std::runtime_error("error: outDataSize=" + outDataSize);
     }
 
-    cout << "-----  feed data size: [" << outDataSize << "] to buffer id [" << alBufferId << "]" << endl;
+    //cout << " --------------- " << endl;
+    //cout << "outBufferSize:" << outBufferSize << endl;
+    //cout << "outSamples:" << outSamples << endl;
+    //cout << "outDataSize:" << outDataSize << endl;
+    //cout << " --------------- " << endl;
+
+    //cout << "feed data size: [" << outDataSize << "] to buffer id [" << alBufferId << "]" << endl;
+    //cout << "======================================" << endl;
+    //cout << "ulFormat:" << ulFormat << endl;
+    //cout << "outDataSize:" << outDataSize << endl;
+    //cout << "outSampleRate:" << outSampleRate << endl;
+    //cout << "bufferID:" << alBufferId << endl;
+    //cout << "======================================" << endl;
+
     alBufferData(alBufferId, ulFormat, outBuffer, outDataSize, outSampleRate);
     alSourceQueueBuffers(uiSource, 1, &alBufferId);
-
   }
 }
 
@@ -146,20 +165,18 @@ int play(FrameGrabber* grabber) {
     printf("Error generating audio source.");
     return -1;
   }
-  ALfloat SourcePos[] = { 0.0, 0.0, 0.0 };
-  ALfloat SourceVel[] = { 0.0, 0.0, 0.0 };
-  ALfloat ListenerPos[] = { 0.0, 0, 0 };
-  ALfloat ListenerVel[] = { 0.0, 0.0, 0.0 };
+  ALfloat SourcePos[] = {0.0, 0.0, 0.0};
+  ALfloat SourceVel[] = {0.0, 0.0, 0.0};
+  ALfloat ListenerPos[] = {0.0, 0, 0};
+  ALfloat ListenerVel[] = {0.0, 0.0, 0.0};
   // first 3 elements are "at", second 3 are "up"
-  ALfloat ListenerOri[] = { 0.0, 0.0, -1.0, 0.0, 1.0, 0.0 };
+  ALfloat ListenerOri[] = {0.0, 0.0, -1.0, 0.0, 1.0, 0.0};
   alSourcef(uiSource, AL_PITCH, 1.0);
   alSourcef(uiSource, AL_GAIN, 1.0);
   alSourcefv(uiSource, AL_POSITION, SourcePos);
   alSourcefv(uiSource, AL_VELOCITY, SourceVel);
   alSourcef(uiSource, AL_REFERENCE_DISTANCE, 50.0f);
   alSourcei(uiSource, AL_LOOPING, AL_FALSE);
-
-
 
   alDistanceModel(AL_LINEAR_DISTANCE_CLAMPED);
   alListener3f(AL_POSITION, 0, 0, 0);
@@ -174,11 +191,9 @@ int play(FrameGrabber* grabber) {
 
   alGenBuffers(NUMBUFFERS, alBufferArray);
 
-
   for (int i = 0; i < NUMBUFFERS; i++) {
     cout << "buffer[" << i << "] id=" << alBufferArray[i] << endl;
   }
-
 
   // feed audio buffer first time.
   for (int i = 0; i < NUMBUFFERS; i++) {
@@ -187,7 +202,6 @@ int play(FrameGrabber* grabber) {
 
   // Start playing source
   alSourcePlay(uiSource);
-
 
   ALint iTotalBuffersProcessed = 0;
   ALint iBuffersProcessed;
@@ -206,8 +220,8 @@ int play(FrameGrabber* grabber) {
     // Keep a running count of number of buffers processed (for logging
     // purposes only)
     iTotalBuffersProcessed += iBuffersProcessed;
-    cout << "Total Buffers Processed: " << iTotalBuffersProcessed << endl;
-    cout << "Processed: " << iBuffersProcessed << endl;
+    //cout << "Total Buffers Processed: " << iTotalBuffersProcessed << endl;
+    //cout << "Processed: " << iBuffersProcessed << endl;
 
     // For each processed buffer, remove it from the Source Queue, read next
     // chunk of audio data from disk, fill buffer with new data, and add it
@@ -223,7 +237,7 @@ int play(FrameGrabber* grabber) {
     // was completed, or the Source was starved of audio data, and needs to
     // be restarted.
     alGetSourcei(uiSource, AL_SOURCE_STATE, &iState);
-    //cout << "state: " << std::hex << iState << endl;
+
 
     if (iState != AL_PLAYING) {
       // If there are Buffers in the Source Queue then the Source was

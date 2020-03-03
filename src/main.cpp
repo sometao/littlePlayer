@@ -84,8 +84,8 @@ int main(int argc, char* argv[]) {
 
   //testReadFileInfo();
 
-  //testPlayer();
-  testAudio();
+  testPlayer();
+  //testAudio();
 
   return 0;
 }

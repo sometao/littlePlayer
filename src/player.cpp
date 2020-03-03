@@ -144,7 +144,7 @@ void playYuvFile(const char* inputPath) {
 
 void audio_callback(void* userdata, Uint8* stream, int len) {
 
-  cout << " +++++++++++++++++++++++++++++++++++++++++ " << endl;
+  //cout << " +++++++++++++++++++++++++++++++++++++++++ " << endl;
 
   AVFrame* aFrame = av_frame_alloc();
 
@@ -153,7 +153,7 @@ void audio_callback(void* userdata, Uint8* stream, int len) {
 
   // TODO get audio data from grabber, and put it into stream limited by len.
 
-  cout << "audio_callback called:" << len << endl;
+  //cout << "audio_callback called:" << len << endl;
 
   FrameGrabber* grabber = (FrameGrabber*)userdata;
 
@@ -170,11 +170,11 @@ void audio_callback(void* userdata, Uint8* stream, int len) {
     int ret;
     ret = grabber->grabAudioFrame(aFrame);
     if (ret == 2) {
-      cout << "got a audio frame" << endl;
-      cout << "audio frame nb_samples:" << aFrame->nb_samples << endl;
-      cout << "audio frame sample_rate:" << aFrame->sample_rate << endl;
-      cout << "audio frame channels:" << aFrame->channels << endl;
-      cout << "audio frame format:" << aFrame->format << endl;
+      //cout << "got a audio frame" << endl;
+      //cout << "audio frame nb_samples:" << aFrame->nb_samples << endl;
+      //cout << "audio frame sample_rate:" << aFrame->sample_rate << endl;
+      //cout << "audio frame channels:" << aFrame->channels << endl;
+      //cout << "audio frame format:" << aFrame->format << endl;
 
       memset(audio_buf, 0, 1024 * 20);
 
@@ -186,16 +186,16 @@ void audio_callback(void* userdata, Uint8* stream, int len) {
           grabber->getAudioContext(), aFrame, AVSampleFormat::AV_SAMPLE_FMT_S16,
           grabber->getChannels(), grabber->getSampleRate(), audio_buf);
 
-      cout << "audio frame bufferSize:" << bufferSize << endl;
-      cout << "audio frame out_size:" << out_size << endl;
+      //cout << "audio frame bufferSize:" << bufferSize << endl;
+      //cout << "audio frame out_size:" << out_size << endl;
 
-      cout << "audio_buf[...]";
-      cout << (unsigned int)audio_buf[0] << " ";
-      cout << (unsigned int)audio_buf[1] << ", ";
-      cout << (unsigned int)audio_buf[2] << " ";
-      cout << (unsigned int)audio_buf[3] << ", ";
-      cout << (unsigned int)audio_buf[4] << " ";
-      cout << (unsigned int)audio_buf[5] << " ," << endl;
+      //cout << "audio_buf[...]";
+      //cout << (unsigned int)audio_buf[0] << " ";
+      //cout << (unsigned int)audio_buf[1] << ", ";
+      //cout << (unsigned int)audio_buf[2] << " ";
+      //cout << (unsigned int)audio_buf[3] << ", ";
+      //cout << (unsigned int)audio_buf[4] << " ";
+      //cout << (unsigned int)audio_buf[5] << " ," << endl;
       
       if (out_size <= 0) {
         throw std::runtime_error("audio_resampling error. out_size=" + out_size);
@@ -234,10 +234,9 @@ void audio_callback(void* userdata, Uint8* stream, int len) {
   if (len != 0) {
     throw std::runtime_error("some error, len != 0");
   } else {
-    cout << "audio_callback success." << endl;
+    //cout << "audio_callback success." << endl;
   }
 
-  cout << " -------------------------------------- " << endl;
 
 }
 

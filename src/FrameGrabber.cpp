@@ -354,13 +354,13 @@ int FrameGrabber::grabImageFrame(AVFrame* pFrame) {
   return ret;
 }
 
-// int FrameGrabber::grabAudioFrame(AVFrame* pFrame) {
-//  if (!audioEnabled) {
-//    throw runtime_error("audio disabled.");
-//  }
-//  int ret = grabFrameByType(pFrame, AVMediaType::AVMEDIA_TYPE_AUDIO);
-//  return ret;
-//}
+ int FrameGrabber::grabAudioFrame(AVFrame* pFrame) {
+  if (!audioEnabled) {
+    throw runtime_error("audio disabled.");
+  }
+  int ret = grabFrameByType(pFrame, AVMediaType::AVMEDIA_TYPE_AUDIO);
+  return ret;
+}
 
 
 
@@ -375,7 +375,7 @@ int FrameGrabber::grabFrame(AVFrame* pFrame) {
  *      0: the decoder has been fully flushed, and there will be no more output frames
  *      negative values: error;
  */
-int FrameGrabber::grabAudioFrame(AVFrame* pFrame) {
+int FrameGrabber::grabAudioFrame_bkp(AVFrame* pFrame) {
 
   int ret = -1;
 
@@ -408,7 +408,7 @@ int FrameGrabber::grabAudioFrame(AVFrame* pFrame) {
         } else {
           // file got error or end.
           EasyWay::printDebug("av_read_frame ret < 0");
-          avcodec_send_packet(vCodecCtx, nullptr);
+          avcodec_send_packet(aCodecCtx, nullptr);
           break;
         }
       }
@@ -424,6 +424,9 @@ int FrameGrabber::grabAudioFrame(AVFrame* pFrame) {
     }
   }
 }
+
+
+
 /*
  * @return
  *      0: success, a frame was returned
