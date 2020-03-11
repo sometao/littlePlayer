@@ -2,6 +2,6 @@
 
 BasedOnStyle: Google
 
-ColumnLimit: 100
+ColumnLimit: 95
 
 SortIncludes: false 
