@@ -5,11 +5,9 @@
 #include <thread>
 #include <vector>
 
-
 //#define DEBUG_LOG
 
 class EasyWay {
-
 #ifdef DEBUG_LOG
   static const bool isDebug = true;
 #else
@@ -102,7 +100,9 @@ void TestUniformInt1() {
     cout << random1() << "\n";
   }
 
-  cout << "------------------------------------------" << endl;
+  cout << "-----------------------------------------"
+          "！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！-"
+       << endl;
 
   auto random2 = EasyWay::uniformIntDistribution(1000, 3000, 12345);
   for (auto i : EasyWay::range(0, 10)) {

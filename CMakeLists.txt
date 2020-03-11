@@ -108,7 +108,8 @@ add_executable (${PROJECT_NAME}
 	src/FrameGrabber.cpp
 	src/ffmpegUtil.cpp
 	src/player.cpp
-	src/playAudio.cpp
+	src/playAudioByOpenAL.cpp
+	src/playAudioBySDL.cpp
 )
 
 
