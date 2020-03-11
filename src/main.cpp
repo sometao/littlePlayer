@@ -63,9 +63,9 @@ void testReadFileInfo() {
 void testImage() {
   //const char* inputPath = "D:/data/video/VID_20181123_214724.mp4";
   //const char* inputPath = "D:/data/video/v1_out10.mp4";
-  const char* inputPath = "D:/data/video/p3_out1.mp4";
+  string inputPath = "D:/data/video/p3_out1.mp4";
   //const string inputPath = "D:/media/Music/test/MyLove.mp3";
-  //const char* inputPath = "tempout001.yuv";
+  //string inputPath = "D:/data/tmp/ffmepg_test/output002.yuv";
   playVideo(inputPath);
 
 }
@@ -85,8 +85,8 @@ int main(int argc, char* argv[]) {
 
   //testReadFileInfo();
 
-  //testImage();
-  testAudio();
+  testImage();
+  //testAudio();
 
   return 0;
 }

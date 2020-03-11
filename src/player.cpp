@@ -62,7 +62,7 @@ int refreshPicture(void* opaque) {
   return 0;
 }
 
-void playYuvFile(const char* inputPath) {
+void playYuvFile(const string& inputPath) {
   cout << "Hi, player sdl2." << endl;
   if (SDL_Init(SDL_INIT_VIDEO)) {
     string errMsg = "Could not initialize SDL -";
@@ -204,7 +204,7 @@ void playMediaFileVideo(const string& inputPath) {
 
     while (true) {
       if (!videoFinish) {
-        ret = grabber.grabImageFrame(frame);
+        ret = grabber.grabImageFrame_bkp(frame);
         if (ret == 1) {  // success.
           ffmpegUtil::writeY420pFrame2Buffer(reinterpret_cast<char*>(buffer), frame);
         } else if (ret == 0) {  // no more frame.

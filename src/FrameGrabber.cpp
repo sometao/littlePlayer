@@ -429,11 +429,13 @@ int FrameGrabber::grabAudioFrame_bkp(AVFrame* pFrame) {
 
 /*
  * @return
- *      0: success, a frame was returned
- *      1: the decoder has been fully flushed, and there will be no more output frames
+ *      1: success, a frame was returned
+ *      0: the decoder has been fully flushed, and there will be no more output frames
  *      negative values: error;
  */
 int FrameGrabber::grabImageFrame_bkp(AVFrame* pFrame) {
+
+  cout << "grabImageFrame" << endl;
   int got_picture = 0;
 
   int ret = -1;
@@ -442,7 +444,7 @@ int FrameGrabber::grabImageFrame_bkp(AVFrame* pFrame) {
     ret = avcodec_receive_frame(vCodecCtx, pFrame);
     if (ret == 0) {
       EasyWay::printDebug("avcodec_receive_frame ret == 0");
-      return 0;
+      return 1;
     } else if (ret == AVERROR(EAGAIN)) {
       EasyWay::printDebug("avcodec_receive_frame ret == AVERROR(EAGAIN)");
       while (true) {
@@ -474,7 +476,7 @@ int FrameGrabber::grabImageFrame_bkp(AVFrame* pFrame) {
 
     } else if (ret == AVERROR_EOF) {
       cout << "no more output frames." << endl;
-      return 1;
+      return 0;
     } else {
       string errorMsg = "avcodec_receive_frame error: ";
       errorMsg += ret;
