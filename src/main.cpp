@@ -81,17 +81,17 @@ void testPlayAudio() {
   cout << "hello, audio." << endl;
   string inputPath = "D:/media/Music/test/MyLove.mp3";
 
-  //playAudioBySDL(inputPath);
-  playAudioByOpenAL(inputPath);
+  playAudioBySDL(inputPath);
+  //playAudioByOpenAL(inputPath);
 }
 
 int main(int argc, char* argv[]) {
   cout << "hello, little player." << endl;
 
   //testReadFileInfo();
-  //testPlayVideo();
+  testPlayVideo();
 
-  testPlayAudio();
+  //testPlayAudio();
 
   return 0;
 }

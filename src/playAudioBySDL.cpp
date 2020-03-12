@@ -13,22 +13,16 @@ using std::string;
 namespace {
 using namespace ffmpegUtil;
 
-const int bpp = 12;
+struct PlayUtil {
+  FrameGrabber* grabber;
+  ReSampler* reSmapler;
+};
 
-int screen_w = 640;
-int screen_h = 360;
-const int pixel_w = 1920;
-const int pixel_h = 1080;
-
-const int bufferSize = pixel_w * pixel_h * bpp / 8;
-unsigned char buffer[bufferSize];
-
-int thread_exit = 0;
 
 void audio_callback(void* userdata, Uint8* stream, int len) {
-  void** playUtil = (void**)userdata;
-  FrameGrabber* grabber = (FrameGrabber*)playUtil[0];
-  ffmpegUtil::ReSampler* reSampler = (ffmpegUtil::ReSampler*)playUtil[1];
+  PlayUtil* playUtil = (PlayUtil*)userdata;
+  FrameGrabber* grabber = playUtil->grabber;
+  ReSampler* reSampler = playUtil->reSmapler;
 
   static uint8_t* outBuffer = nullptr;
   static int outBufferSize = 0;
@@ -53,6 +47,7 @@ void audio_callback(void* userdata, Uint8* stream, int len) {
   }
 }
 
+
 void playMediaFileAudio(const string& inputPath) {
   FrameGrabber grabber{inputPath, false, true};
   grabber.start();
@@ -67,9 +62,7 @@ void playMediaFileAudio(const string& inputPath) {
 
   ReSampler reSampler(inAudio, outAudio);
 
-  void* playUtil[2];
-  playUtil[0] = &grabber;
-  playUtil[1] = &reSampler;
+  PlayUtil playUtil{&grabber, &reSampler};
 
   SDL_setenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE", "1", 1);
 
@@ -80,8 +73,6 @@ void playMediaFileAudio(const string& inputPath) {
     throw std::runtime_error(errMsg);
   }
 
-  // SDL_AudioInit("waveout");
-  // SDL_AudioInit("dsound");
 
   //--------------------- GET SDL audio READY -------------------
 

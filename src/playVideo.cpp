@@ -23,9 +23,6 @@ using std::string;
 
 namespace ffmpegUtil {
 extern void writeY420pFrame2Buffer(char* buffer, AVFrame* frame);
-extern int audio_resampling(AVCodecContext* aCodecCtx, AVFrame* decoded_audio_frame,
-                            enum AVSampleFormat out_sample_fmt, int out_channels,
-                            int out_sample_rate, uint8_t* out_buf);
 
 }  // namespace ffmpegUtil
 
@@ -196,7 +193,7 @@ void playMediaFileVideo(const string& inputPath) {
   }
 
   try {
-    int timeInterval = (int)grabber.getFrameRate();
+    int timeInterval = 1000 / (int)grabber.getFrameRate();
 
     cout << "timeInterval: " << timeInterval << endl;
 

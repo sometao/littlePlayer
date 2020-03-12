@@ -109,6 +109,7 @@ add_executable (${PROJECT_NAME}
 	src/playVideo.cpp
 	src/playAudioByOpenAL.cpp
 	src/playAudioBySDL.cpp
+	src/playVideoWithAudio.cpp
 )
 
 
