@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
-#include "FrameGrabber.h"
-#include "ffmpegUtil.hpp"
+#include "ffmpegUtil.h"
 
 extern "C" {
 #include "SDL2/SDL.h"
@@ -31,6 +30,8 @@ extern int audio_resampling(AVCodecContext* aCodecCtx, AVFrame* decoded_audio_fr
 }  // namespace ffmpegUtil
 
 namespace {
+
+using namespace ffmpegUtil;
 
 const int bpp = 12;
 

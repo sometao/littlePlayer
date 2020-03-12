@@ -1,5 +1,4 @@
 #include <iostream>
-#include "FrameGrabber.h"
 
 #include "OpenAL/alc.h"
 #include "OpenAL/al.h"
@@ -8,7 +7,7 @@
 #include <string>
 #include <iomanip>
 
-#include "ffmpegUtil.hpp"
+#include "ffmpegUtil.h"
 
 extern "C" {
 #include <libswresample/swresample.h>
@@ -18,6 +17,7 @@ extern "C" {
 #define SERVICE_UPDATE_PERIOD (20)
 
 namespace {
+using namespace ffmpegUtil;
 
 using std::cout;
 using std::endl;
@@ -44,8 +44,7 @@ int initSource(ALuint* pSource) {
   alSourcei(uiSource, AL_LOOPING, AL_FALSE);
 }
 
-
-void feedAudioData(FrameGrabber* grabber, ffmpegUtils::ReSampler* reSampler, ALuint uiSource,
+void feedAudioData(FrameGrabber* grabber, ffmpegUtil::ReSampler* reSampler, ALuint uiSource,
                    ALuint alBufferId) {
   static uint8_t* outBuffer = nullptr;
   static int outBufferSize = 0;
@@ -53,7 +52,7 @@ void feedAudioData(FrameGrabber* grabber, ffmpegUtils::ReSampler* reSampler, ALu
 
   int ret = grabber->grabAudioFrame(aFrame);
   if (ret == 2) {
-    //cout << "play with ReSampler!" << endl;
+    // cout << "play with ReSampler!" << endl;
     if (outBuffer == nullptr) {
       outBufferSize = reSampler->allocDataBuf(&outBuffer, aFrame->nb_samples);
     } else {
@@ -72,7 +71,6 @@ void feedAudioData(FrameGrabber* grabber, ffmpegUtils::ReSampler* reSampler, ALu
     alBufferData(alBufferId, ulFormat, outBuffer, outDataSize, reSampler->out.sampleRate);
     alSourceQueueBuffers(uiSource, 1, &alBufferId);
   }
-
 }
 
 int play(FrameGrabber* grabber) {
@@ -86,10 +84,10 @@ int play(FrameGrabber* grabber) {
   int inChannels = grabber->getChannels();
   AVSampleFormat inFormat = AVSampleFormat(grabber->getSampleFormat());
 
-  ffmpegUtils::AudioInfo inAudio(inLayout, inSampleRate, inChannels, inFormat);
-  ffmpegUtils::AudioInfo outAudio = ffmpegUtils::ReSampler::getDefaultAudioInfo();
+  ffmpegUtil::AudioInfo inAudio(inLayout, inSampleRate, inChannels, inFormat);
+  ffmpegUtil::AudioInfo outAudio = ffmpegUtil::ReSampler::getDefaultAudioInfo();
 
-  ffmpegUtils::ReSampler reSampler(inAudio, outAudio);
+  ffmpegUtil::ReSampler reSampler(inAudio, outAudio);
 
   pDevice = alcOpenDevice(NULL);
   pContext = alcCreateContext(pDevice, NULL);
@@ -198,5 +196,4 @@ void playAudioByOpenAL(const string& filePath) {
   grabber.start();
 
   play(&grabber);
-
 }

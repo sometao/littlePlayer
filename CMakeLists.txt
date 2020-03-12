@@ -105,9 +105,8 @@ message(SWSCALE_LIBRARY=${SWSCALE_LIBRARY})
 add_executable (${PROJECT_NAME} 
 	src/main.cpp
 	src/pch.cpp
-	src/FrameGrabber.cpp
 	src/ffmpegUtil.cpp
-	src/player.cpp
+	src/playVideo.cpp
 	src/playAudioByOpenAL.cpp
 	src/playAudioBySDL.cpp
 )

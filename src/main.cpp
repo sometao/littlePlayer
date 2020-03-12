@@ -1,7 +1,9 @@
 
 #include <iostream>
 #include <fstream>
-#include "FrameGrabber.h"
+//#include "FrameGrabber.h"
+#include "ffmpegUtil.h"
+
 
 using std::cout;
 using std::endl;
@@ -17,6 +19,8 @@ extern void playAudioBySDL(const string& inputPath);
 extern void playAudioByOpenAL(const string& inputPath);
 
 void testReadFileInfo() {
+  using namespace ffmpegUtil;
+
   string inputFile = "D:/data/video/VID_20181123_214724.mp4";
   string outputFile = "tempout001.yuv";
   FrameGrabber grabber{inputFile};
@@ -60,7 +64,7 @@ void testReadFileInfo() {
 }
 
 
-void testImage() {
+void testPlayVideo() {
   //const char* inputPath = "D:/data/video/VID_20181123_214724.mp4";
   string inputPath = "D:/data/video/v1_out10.mp4";
   // string inputPath = "D:/data/video/p3_out1.mp4";
@@ -72,11 +76,12 @@ void testImage() {
 
 
 
-void testAudio() {
+void testPlayAudio() {
 
   cout << "hello, audio." << endl;
   string inputPath = "D:/media/Music/test/MyLove.mp3";
 
+  //playAudioBySDL(inputPath);
   playAudioByOpenAL(inputPath);
 }
 
@@ -84,9 +89,9 @@ int main(int argc, char* argv[]) {
   cout << "hello, little player." << endl;
 
   //testReadFileInfo();
+  //testPlayVideo();
 
-  testImage();
-  //testAudio();
+  testPlayAudio();
 
   return 0;
 }
