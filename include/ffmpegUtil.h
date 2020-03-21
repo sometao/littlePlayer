@@ -35,6 +35,108 @@ using std::endl;
 using std::string;
 using std::stringstream;
 
+struct ffUtils {
+  static void initCodecContext(AVFormatContext* f, int streamIndex, AVCodecContext** ctx) {
+    auto codecType = f->streams[streamIndex]->codec->codec_type;
+
+    string codecTypeStr{};
+    switch (f->streams[streamIndex]->codec->codec_type) {
+      case AVMEDIA_TYPE_VIDEO:
+        codecTypeStr = "vidoe_decodec";
+        break;
+      case AVMEDIA_TYPE_AUDIO:
+        codecTypeStr = "audio_decodec";
+        break;
+      default:
+        throw std::runtime_error("error_decodec, it should not happen.");
+    }
+
+    AVCodec* codec = avcodec_find_decoder(f->streams[streamIndex]->codecpar->codec_id);
+
+    if (codec == nullptr) {
+      string errorMsg = "Could not find codec: ";
+      errorMsg += (*ctx)->codec_id;
+      cout << errorMsg << endl;
+      throw std::runtime_error(errorMsg);
+    }
+
+    (*ctx) = avcodec_alloc_context3(codec);
+    auto codecCtx = *ctx;
+
+    if (avcodec_parameters_to_context(codecCtx, f->streams[streamIndex]->codecpar) != 0) {
+      string errorMsg = "Could not copy codec context: ";
+      errorMsg += codec->name;
+      cout << errorMsg << endl;
+      throw std::runtime_error(errorMsg);
+    }
+
+    if (avcodec_open2(codecCtx, codec, nullptr) < 0) {
+      string errorMsg = "Could not open codec: ";
+      errorMsg += codec->name;
+      cout << errorMsg << endl;
+      throw std::runtime_error(errorMsg);
+    }
+
+    cout << codecTypeStr << " [" << codecCtx->codec->name
+         << "] codec context initialize success." << endl;
+  }
+};
+
+class PacketGrabber {
+  const string inputUrl;
+  AVFormatContext* formatCtx = nullptr;
+  bool fileGotToEnd = false;
+
+ public:
+  PacketGrabber(const string& uri) : inputUrl(uri) { 
+    
+    formatCtx = avformat_alloc_context(); 
+
+    if (avformat_open_input(&formatCtx, inputUrl.c_str(), NULL, NULL) != 0) {
+      string errorMsg = "Can not open input file:";
+      errorMsg += inputUrl;
+      cout << errorMsg << endl;
+      throw std::runtime_error(errorMsg);
+    }
+
+    if (avformat_find_stream_info(formatCtx, NULL) < 0) {
+      string errorMsg = "Can not find stream information in input file:";
+      errorMsg += inputUrl;
+      cout << errorMsg << endl;
+      throw std::runtime_error(errorMsg);
+    }
+  }
+
+
+
+  /*
+   *  return
+   *          x > 0  : stream_index
+   *          -1     : no more pkt
+   */
+  int grabPacket(AVPacket* pkt) {
+    if (fileGotToEnd) {
+      return -1;
+    }
+    while (true) {
+      if (av_read_frame(formatCtx, pkt) >= 0) {
+        return pkt->stream_index;
+      } else {
+        // file end;
+        fileGotToEnd = true;
+        return -1;
+      }
+    }
+  }
+
+  AVFormatContext* getFormatCtx() const { return formatCtx; }
+
+  bool isFileEnd() const {return fileGotToEnd; }
+
+};
+
+
+
 class FrameGrabber {
   const string inputUrl;
 
@@ -90,7 +192,7 @@ class FrameGrabber {
               // cout << "[VIDEO] avcodec_send_packet success." << endl;;
               break;
             } else if (ret == AVERROR(EAGAIN)) {
-              // buff full, do nothing.
+              // buff full, can not decode anymore, do nothing.
             } else {
               string errorMsg = "[VIDEO] avcodec_send_packet error: ";
               errorMsg += ret;
@@ -105,7 +207,7 @@ class FrameGrabber {
               // cout << "[AUDIO] avcodec_send_packet success." << endl;;
               break;
             } else if (ret == AVERROR(EAGAIN)) {
-              // buff full, do nothing.
+              // buff full, can not decode anymore, do nothing.
             } else {
               string errorMsg = "[AUDIO] avcodec_send_packet error: ";
               errorMsg += ret;
@@ -120,7 +222,7 @@ class FrameGrabber {
           }
         } else {
           // file got error or end.
-          // cout << "av_read_frame ret < 0" << endl;;
+          // cout << "av_read_frame ret < 0" << endl;
           fileGotToEnd = true;
           if (vCodecCtx != nullptr) avcodec_send_packet(vCodecCtx, nullptr);
           if (aCodecCtx != nullptr) avcodec_send_packet(aCodecCtx, nullptr);
@@ -184,51 +286,6 @@ class FrameGrabber {
       }
     }
   };
-
-  static void initCodecContext(AVFormatContext* f, int streamIndex, AVCodecContext** ctx) {
-    auto codecType = f->streams[streamIndex]->codec->codec_type;
-
-    string codecTypeStr{};
-    switch (f->streams[streamIndex]->codec->codec_type) {
-      case AVMEDIA_TYPE_VIDEO:
-        codecTypeStr = "vidoe_decodec";
-        break;
-      case AVMEDIA_TYPE_AUDIO:
-        codecTypeStr = "audio_decodec";
-        break;
-      default:
-        throw std::runtime_error("error_decodec, it should not happen.");
-    }
-
-    AVCodec* codec = avcodec_find_decoder(f->streams[streamIndex]->codecpar->codec_id);
-
-    if (codec == nullptr) {
-      string errorMsg = "Could not find codec: ";
-      errorMsg += (*ctx)->codec_id;
-      cout << errorMsg << endl;
-      throw std::runtime_error(errorMsg);
-    }
-
-    (*ctx) = avcodec_alloc_context3(codec);
-    auto codecCtx = *ctx;
-
-    if (avcodec_parameters_to_context(codecCtx, f->streams[streamIndex]->codecpar) != 0) {
-      string errorMsg = "Could not copy codec context: ";
-      errorMsg += codec->name;
-      cout << errorMsg << endl;
-      throw std::runtime_error(errorMsg);
-    }
-
-    if (avcodec_open2(codecCtx, codec, nullptr) < 0) {
-      string errorMsg = "Could not open codec: ";
-      errorMsg += codec->name;
-      cout << errorMsg << endl;
-      throw std::runtime_error(errorMsg);
-    }
-
-    cout << codecTypeStr << " [" << codecCtx->codec->name
-         << "] codec context initialize success." << endl;
-  }
 
  public:
   FrameGrabber(const string& uri, bool enableVideo = true, bool enableAudio = true)
@@ -369,7 +426,7 @@ class FrameGrabber {
         cout << errorMsg << endl;
         throw std::runtime_error(errorMsg);
       } else {
-        initCodecContext(formatCtx, videoIndex, &vCodecCtx);
+        ffUtils::initCodecContext(formatCtx, videoIndex, &vCodecCtx);
         cout << "Init video Codec Context" << endl;
       }
     }
@@ -381,7 +438,7 @@ class FrameGrabber {
         cout << errorMsg << endl;
         throw std::runtime_error(errorMsg);
       } else {
-        initCodecContext(formatCtx, audioIndex, &aCodecCtx);
+        ffUtils::initCodecContext(formatCtx, audioIndex, &aCodecCtx);
         cout << "Init audio Codec Context" << endl;
       }
     }
