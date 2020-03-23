@@ -66,10 +66,10 @@ void testReadFileInfo() {
 
 void testPlayVideo() {
   //const char* inputPath = "D:/data/video/VID_20181123_214724.mp4";
-  string inputPath = "D:/data/video/v1_out10.mp4";
   // string inputPath = "D:/data/video/p3_out1.mp4";
   //const string inputPath = "D:/media/Music/test/MyLove.mp3";
   //string inputPath = "D:/data/tmp/ffmepg_test/output002.yuv";
+  string inputPath = "D:/data/video/v1_out10.mp4";
   playVideo(inputPath);
 
 }
@@ -85,10 +85,12 @@ void testPlayAudio() {
   //playAudioByOpenAL(inputPath);
 }
 
+
+
 int main(int argc, char* argv[]) {
   cout << "hello, little player." << endl;
-
   //testReadFileInfo();
+
   testPlayVideo();
 
   //testPlayAudio();
