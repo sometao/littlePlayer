@@ -17,6 +17,7 @@ extern void writeY420pFrame(std::ofstream& os, AVFrame* frame);
 extern void playVideo(const string& inputPath);
 extern void playAudioBySDL(const string& inputPath);
 extern void playAudioByOpenAL(const string& inputPath);
+extern void playVideoWithAudio(const string& inputPath);
 
 void testReadFileInfo() {
   using namespace ffmpegUtil;
@@ -87,13 +88,23 @@ void testPlayAudio() {
 
 
 
+void testPlayVideoWithAudio() {
+
+  cout << "hello, testPlayVideoWithAudio." << endl;
+  string inputPath = "D:/media/Music/test/MyLove.mp3";
+  playVideoWithAudio(inputPath);
+}
+
+
+
 int main(int argc, char* argv[]) {
   cout << "hello, little player." << endl;
   //testReadFileInfo();
 
-  testPlayVideo();
-
+  //testPlayVideo();
   //testPlayAudio();
+
+  testPlayVideoWithAudio();
 
   return 0;
 }

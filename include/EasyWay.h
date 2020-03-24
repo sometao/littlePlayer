@@ -36,8 +36,7 @@ class EasyWay {
   }
 
   static void sleep(int milliSecond) {
-    using namespace std::chrono_literals;
-    std::this_thread::sleep_for(milliSecond * 1ms);
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliSecond));
   }
 
   static std::vector<size_t> range(size_t begin, size_t until, size_t step = 1) {

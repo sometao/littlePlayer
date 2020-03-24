@@ -19,13 +19,12 @@ using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 
-struct PacketDeleter { // É¾³ýÆ÷
-  void operator()(AVPacket* p) const {
-    av_free_packet(p);
-  };
+//FIXME no need PacketDeleter
+struct PacketDeleter {  // É¾³ýÆ÷
+  void operator()(AVPacket* p) const { av_free_packet(p); };
 };
 
-
+// FIXME no need PacketReceiver?
 class PacketReceiver {
  public:
   virtual void pushPkt(unique_ptr<AVPacket, PacketDeleter> pkt) = 0;
@@ -33,14 +32,14 @@ class PacketReceiver {
 
 class MediaProcessor : public PacketReceiver {
   mutex pktListMutex{};
-
+  int PKT_WAITING_SIZE = 3;
+  bool started = false;
   list<unique_ptr<AVPacket, PacketDeleter>> packetList{};
 
-  // TODO start the thread in constructor
   void nextDataKeeper() {
     int updatePeriod = 10;
     while (true) {
-      if (!isNextDataReady) {
+      if (!isNextDataReady.load()) {
         prepareNextData();
       } else {
         std::this_thread::sleep_for(std::chrono::milliseconds(updatePeriod));
@@ -57,9 +56,8 @@ class MediaProcessor : public PacketReceiver {
   unique_ptr<AVPacket, PacketDeleter> getNextPkt() {
     pktListMutex.lock();
     if (packetList.empty()) {
-      // TODO keep packet list never be empty.
       pktListMutex.unlock();
-      throw std::runtime_error("getNextPkt: packetList is empty");
+      return nullptr;
     } else {
       auto pkt = std::move(packetList.front());
       packetList.pop_front();
@@ -71,13 +69,23 @@ class MediaProcessor : public PacketReceiver {
   virtual void prepareNextData() = 0;
 
  public:
+
+
+  void start() {
+    started = true;
+    std::thread keeper{ &MediaProcessor::nextDataKeeper, this };
+    keeper.detach();
+  }
+
   void pushPkt(unique_ptr<AVPacket, PacketDeleter> pkt) override {
     pktListMutex.lock();
     packetList.push_back(std::move(pkt));
     pktListMutex.unlock();
   }
-};
 
+
+  bool needPacket() { return packetList.size() < PKT_WAITING_SIZE; }
+};
 
 class AudioProcessor : public MediaProcessor {
   int audioIndex = -1;
@@ -90,20 +98,22 @@ class AudioProcessor : public MediaProcessor {
 
  protected:
   void prepareNextData() override {
-    while (!isNextDataReady && !streamFinished) {
-      auto pkt = getNextPkt();
-      auto packet = pkt.release();
+    //FIXME deal with no next data.
 
+    while (!isNextDataReady.load() && !streamFinished) {
+      auto pkt = getNextPkt();
+      if (pkt == nullptr) {
+        cout << "WARN: no next pkt." << endl;
+        return;
+      }
+      auto packet = pkt.release();
       int ret = avcodec_send_packet(aCodecCtx, packet);
-      av_packet_free(&packet);
       if (ret == 0) {
         // av_packet_unref(packet);
         // cout << "[AUDIO] avcodec_send_packet success." << endl;
       } else if (ret == AVERROR(EAGAIN)) {
         // buff full, can not decode any more, do nothing.
-        string errorMsg =
-            "[AUDIO] codec buff full, can not decode any more, it should not happen. ";
-        throw std::runtime_error(errorMsg);
+        // FIXME if packet can not decode, this packet shoud be decode next time.
       } else {
         string errorMsg = "[AUDIO] avcodec_send_packet error: ";
         errorMsg += ret;
@@ -113,8 +123,9 @@ class AudioProcessor : public MediaProcessor {
 
       ret = avcodec_receive_frame(aCodecCtx, nextFrame);
       if (ret == 0) {
+        //cout << "[AUDIO] avcodec_receive_frame success." << endl;
         // success.
-        isNextDataReady = true;
+        isNextDataReady.store(true);
       } else if (ret == AVERROR_EOF) {
         cout << "no more output frames." << endl;
         streamFinished = true;
@@ -126,6 +137,7 @@ class AudioProcessor : public MediaProcessor {
         cout << errorMsg << endl;
         throw std::runtime_error(errorMsg);
       }
+      av_packet_free(&packet);
     }
   }
 
@@ -140,7 +152,7 @@ class AudioProcessor : public MediaProcessor {
     }
 
     cout << "--------------- Audio Information ----------------" << endl;
-    av_dump_format(formatCtx, audioIndex, "", 0);
+    //av_dump_format(formatCtx, audioIndex, "", 0);
 
     ffmpegUtil::ffUtils::initCodecContext(formatCtx, audioIndex, &aCodecCtx);
 
@@ -155,24 +167,64 @@ class AudioProcessor : public MediaProcessor {
     reSampler = new ffmpegUtil::ReSampler(inAudio, outAudio);
   }
 
-  int getAudioIndex() const {return audioIndex; }
+  int getAudioIndex() const { return audioIndex; }
 
   void writeAudioData(uint8_t* stream, int len) {
+
+
     if (outBuffer == nullptr) {
-      outBufferSize = reSampler->allocDataBuf(&outBuffer, nextFrame->nb_samples);
+      if (isNextDataReady.load()) {
+        outBufferSize = reSampler->allocDataBuf(&outBuffer, nextFrame->nb_samples);
+      } else {
+        cout << "no frame to init outBufferSize" << endl;
+        return;
+      }
     } else {
       memset(outBuffer, 0, outBufferSize);
     }
-    if (isNextDataReady) {
+
+    if (isNextDataReady.load()) {
       // write nextFrame to stream
       int outDataSize = reSampler->reSample(outBuffer, outBufferSize, nextFrame);
-      isNextDataReady = false;
+      isNextDataReady.store(false);
       if (outDataSize != len) {
         cout << "WARNING: outDataSize[" << outDataSize << "] != len[" << len << "]" << endl;
       }
     } else {
-      // if list is empty, silent will be writed.
+      // if list is empty, silent will be writen.
     }
     std::memcpy(stream, outBuffer, len);
+  }
+
+  int getChannels() const {
+    if (aCodecCtx != nullptr) {
+      return aCodecCtx->channels;
+    } else {
+      throw std::runtime_error("can not getChannels.");
+    }
+  }
+
+  int getChannleLayout() const {
+    if (aCodecCtx != nullptr) {
+      return aCodecCtx->channel_layout;
+    } else {
+      throw std::runtime_error("can not getChannleLayout.");
+    }
+  }
+
+  int getSampleRate() const {
+    if (aCodecCtx != nullptr) {
+      return aCodecCtx->sample_rate;
+    } else {
+      throw std::runtime_error("can not getSampleRate.");
+    }
+  }
+
+  int getSampleFormat() const {
+    if (aCodecCtx != nullptr) {
+      return (int)aCodecCtx->sample_fmt;
+    } else {
+      throw std::runtime_error("can not getSampleRate.");
+    }
   }
 };

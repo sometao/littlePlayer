@@ -128,8 +128,6 @@ void playMediaFileAudio(const string& inputPath) {
 
   SDL_Delay(300000);
 
-  // TODO wait for the audio finish.
-
   SDL_CloseAudio();
 
   //----------------------------------
