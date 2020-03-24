@@ -37,7 +37,7 @@ using std::stringstream;
 
 struct ffUtils {
   static void initCodecContext(AVFormatContext* f, int streamIndex, AVCodecContext** ctx) {
-    auto codecType = f->streams[streamIndex]->codec->codec_type;
+
 
     string codecTypeStr{};
     switch (f->streams[streamIndex]->codec->codec_type) {
@@ -79,6 +79,9 @@ struct ffUtils {
 
     cout << codecTypeStr << " [" << codecCtx->codec->name
          << "] codec context initialize success." << endl;
+
+    av_dump_format(f, streamIndex, "", 0);
+
   }
 };
 

@@ -24,14 +24,14 @@ void sdlAudioCallback(void* userdata, Uint8* stream, int len) {
   receiver->writeAudioData(stream, len);
 }
 
-void pktReader(PacketGrabber& pGrabber, AudioProcessor& aProcessor) {
+void pktReader(PacketGrabber& pGrabber, AudioProcessor* aProcessor) {
   const int CHECK_PERIOD = 15;
 
   cout << "INFO: pkt Reader thread started." << endl;
-  auto audioIndex = aProcessor.getAudioIndex();
+  auto audioIndex = aProcessor->getAudioIndex();
 
   while (!pGrabber.isFileEnd()) {
-    if (aProcessor.needPacket()) {
+    if (aProcessor->needPacket()) {
       PacketDeleter d{};
       AVPacket* packet = (AVPacket*)av_malloc(sizeof(AVPacket));
       while (true) {
@@ -39,7 +39,7 @@ void pktReader(PacketGrabber& pGrabber, AudioProcessor& aProcessor) {
         // UNDONE only get audio pkt for test.
         if (t == audioIndex) {
           unique_ptr<AVPacket, PacketDeleter> uPacket(packet, d);
-          aProcessor.pushPkt(std::move(uPacket));
+          aProcessor->pushPkt(std::move(uPacket));
           break;
         }
       }
@@ -124,7 +124,7 @@ int play(const string& inputFile) {
   cout << "create AudioProcessor done." << endl;
 
   // start pkt reader
-  std::thread readerThread{pktReader, std::ref(packetGrabber), std::ref(audioProcessor)};
+  std::thread readerThread{pktReader, std::ref(packetGrabber), &audioProcessor};
 
   SDL_setenv("SDL_AUDIO_ALSA_SET_BUFFER_SIZE", "1", 1);
 
@@ -138,14 +138,12 @@ int play(const string& inputFile) {
   std::thread playAudioThread{ playAudio, std::ref(audioProcessor) };
   playAudioThread.detach();
 
+  //TODO continu here, play video.
 
 
-  SDL_Delay(30000);
+
+
   readerThread.join();
-
-
-
-
   SDL_CloseAudio();
 
   return 0;
