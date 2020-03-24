@@ -616,9 +616,10 @@ class ReSampler {
   const AudioInfo in;
   const AudioInfo out;
 
-  static AudioInfo getDefaultAudioInfo() {
+
+  static AudioInfo getDefaultAudioInfo(int sr) {
     int64_t layout = AV_CH_LAYOUT_STEREO;
-    int sampleRate = 44100;
+    int sampleRate = sr;
     int channels = 2;
     AVSampleFormat format = AV_SAMPLE_FMT_S16;
 
@@ -679,7 +680,7 @@ class ReSampler {
   int reSample(uint8_t* dataBuffer, int dataBufferSize, const AVFrame* frame) {
     int outSamples = swr_convert(swr, &dataBuffer, dataBufferSize,
                                  (const uint8_t**)&frame->data[0], frame->nb_samples);
-
+    //cout << "reSample: nb_samples=" << frame->nb_samples << ", sample_rate = " << frame->sample_rate <<  ", outSamples=" << outSamples << endl;
     if (outSamples <= 0) {
       throw std::runtime_error("error: outSamples=" + outSamples);
     }

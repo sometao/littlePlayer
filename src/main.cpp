@@ -80,7 +80,8 @@ void testPlayVideo() {
 void testPlayAudio() {
 
   cout << "hello, audio." << endl;
-  string inputPath = "D:/media/Music/test/MyLove.mp3";
+  //string inputPath = "D:/media/Music/test/MyLove.mp3";
+  string inputPath = "D:/data/video/v1_out10.mp4";
 
   playAudioBySDL(inputPath);
   //playAudioByOpenAL(inputPath);
@@ -91,7 +92,7 @@ void testPlayAudio() {
 void testPlayVideoWithAudio() {
 
   cout << "hello, testPlayVideoWithAudio." << endl;
-  string inputPath = "D:/media/Music/test/MyLove.mp3";
+  string inputPath = "D:/data/video/v1_out10.mp4";
   playVideoWithAudio(inputPath);
 }
 

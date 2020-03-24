@@ -21,7 +21,7 @@ using std::unique_ptr;
 
 // FIXME no need PacketDeleter
 struct PacketDeleter {  // É¾³ýÆ÷
-  void operator()(AVPacket* p) const { av_free_packet(p); };
+  void operator()(AVPacket* p) const { av_packet_free(&p); };
 };
 
 // FIXME no need PacketReceiver?
@@ -156,6 +156,9 @@ class AudioProcessor : public MediaProcessor {
         break;
       }
     }
+    if (audioIndex < 0) {
+      cout << "WARN: can not find audio stream." << endl;
+    }
 
     ffmpegUtil::ffUtils::initCodecContext(formatCtx, audioIndex, &aCodecCtx);
 
@@ -165,7 +168,7 @@ class AudioProcessor : public MediaProcessor {
     AVSampleFormat inFormat = aCodecCtx->sample_fmt;
 
     ffmpegUtil::AudioInfo inAudio(inLayout, inSampleRate, inChannels, inFormat);
-    ffmpegUtil::AudioInfo outAudio = ffmpegUtil::ReSampler::getDefaultAudioInfo();
+    ffmpegUtil::AudioInfo outAudio = ffmpegUtil::ReSampler::getDefaultAudioInfo(inSampleRate);
 
     reSampler = new ffmpegUtil::ReSampler(inAudio, outAudio);
   }
@@ -254,18 +257,17 @@ class VideoProcessor : public MediaProcessor {
         }
         targetPkt = pkt.release();
       }
-
       int ret = -1;
       ret = avcodec_send_packet(vCodecCtx, targetPkt);
       if (ret == 0) {
         av_packet_free(&targetPkt);
         targetPkt = nullptr;
-        // cout << "[AUDIO] avcodec_send_packet success." << endl;
+        // cout << "[VIDEO] avcodec_send_packet success." << endl;
       } else if (ret == AVERROR(EAGAIN)) {
         // buff full, can not decode any more, nothing need to do.
         // keep the packet for next time decode.
       } else {
-        string errorMsg = "[AUDIO] avcodec_send_packet error: ";
+        string errorMsg = "[VIDEO] avcodec_send_packet error: ";
         errorMsg += ret;
         cout << errorMsg << endl;
         throw std::runtime_error(errorMsg);
@@ -290,71 +292,27 @@ class VideoProcessor : public MediaProcessor {
     }
   }
 
- protected:
-  void prepareNextFrame() override {
-    // FIXME deal with no next data.
-    while (!isNextFrameReady.load() && !streamFinished) {
-      if (targetPkt == nullptr) {
-        auto pkt = getNextPkt();
-        if (pkt == nullptr) {
-          cout << "WARN: no next pkt." << endl;
-          return;
-        }
-        targetPkt = pkt.release();
-      }
-      int ret = -1;
-      ret = avcodec_send_packet(vCodecCtx, targetPkt);
-      if (ret == 0) {
-        av_packet_free(&targetPkt);
-        targetPkt = nullptr;
-        // cout << "[VIDEO] avcodec_send_packet success." << endl;
-      } else if (ret == AVERROR(EAGAIN)) {
-        // buff full, can not decode any more, nothing need to do.
-        // keep the packet for next time decode.
-      } else {
-        string errorMsg = "[VIDEO] avcodec_send_packet error: ";
-        errorMsg += ret;
-        cout << errorMsg << endl;
-        throw std::runtime_error(errorMsg);
-      }
-
-      ret = avcodec_receive_frame(aCodecCtx, nextFrame);
-      if (ret == 0) {
-        // cout << "[AUDIO] avcodec_receive_frame success." << endl;
-        // success.
-        isNextFrameReady.store(true);
-      } else if (ret == AVERROR_EOF) {
-        cout << "no more output frames." << endl;
-        streamFinished = true;
-      } else if (ret == AVERROR(EAGAIN)) {
-        // need more packet.
-      } else {
-        string errorMsg = "avcodec_receive_frame error: ";
-        errorMsg += ret;
-        cout << errorMsg << endl;
-        throw std::runtime_error(errorMsg);
-      }
-    }
-  }
-
  public:
   VideoProcessor(AVFormatContext* formatCtx) {
     for (int i = 0; i < formatCtx->nb_streams; i++) {
       if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
         videoIndex = i;
-        cout << "audio stream index = : [" << i << "]" << endl;
+        cout << "video stream index = : [" << i << "]" << endl;
         break;
       }
+    }
+
+    if (videoIndex < 0) {
+      cout << "WARN: can not find video stream." << endl;
     }
 
     ffmpegUtil::ffUtils::initCodecContext(formatCtx, videoIndex, &vCodecCtx);
 
     int w = vCodecCtx->width;
     int h = vCodecCtx->height;
-    auto fmt = vCodecCtx->pix_fmt;
 
-    sws_ctx =
-        sws_getContext(w, h, fmt, w, h, AV_PIX_FMT_YUV420P, SWS_BILINEAR, NULL, NULL, NULL);
+    sws_ctx = sws_getContext(w, h, vCodecCtx->pix_fmt, w, h, AV_PIX_FMT_YUV420P, SWS_BILINEAR,
+                             NULL, NULL, NULL);
 
     int numBytes = av_image_get_buffer_size(AV_PIX_FMT_YUV420P, w, h, 32);
     outPic = av_frame_alloc();
@@ -362,9 +320,11 @@ class VideoProcessor : public MediaProcessor {
     av_image_fill_arrays(outPic->data, outPic->linesize, buffer, AV_PIX_FMT_YUV420P, w, h, 32);
   }
 
+  int getVideoIndex() const { return videoIndex; }
+
   AVFrame* getFrame() { return outPic; }
 
-  bool nextFrame() {
+  bool refreshFrame() {
     if (isNextFrameReady.load()) {
       // TODO lock/consume/unlock/notify
       // lock nextFrame
@@ -380,4 +340,29 @@ class VideoProcessor : public MediaProcessor {
     }
   }
 
+  int getWidth() const {
+    if (vCodecCtx != nullptr) {
+      return vCodecCtx->width;
+    } else {
+      throw std::runtime_error("can not getWidth.");
+    }
+  }
+
+  int getHeight() const {
+    if (vCodecCtx != nullptr) {
+      return vCodecCtx->height;
+    } else {
+      throw std::runtime_error("can not getHeight.");
+    }
+  }
+
+  double getFrameRate() const {
+    if (vCodecCtx != nullptr) {
+      auto frameRate = vCodecCtx->framerate;
+      double fr = frameRate.num && frameRate.den ? av_q2d(frameRate) : 0.0;
+      return fr;
+    } else {
+      throw std::runtime_error("can not getFrameRate.");
+    }
+  }
 };

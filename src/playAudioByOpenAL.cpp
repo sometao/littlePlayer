@@ -85,7 +85,7 @@ int play(FrameGrabber* grabber) {
   AVSampleFormat inFormat = AVSampleFormat(grabber->getSampleFormat());
 
   ffmpegUtil::AudioInfo inAudio(inLayout, inSampleRate, inChannels, inFormat);
-  ffmpegUtil::AudioInfo outAudio = ffmpegUtil::ReSampler::getDefaultAudioInfo();
+  ffmpegUtil::AudioInfo outAudio = ffmpegUtil::ReSampler::getDefaultAudioInfo(inSampleRate);
 
   ffmpegUtil::ReSampler reSampler(inAudio, outAudio);
 

@@ -18,7 +18,6 @@ struct PlayUtil {
   ReSampler* reSmapler;
 };
 
-
 void audio_callback(void* userdata, Uint8* stream, int len) {
   PlayUtil* playUtil = (PlayUtil*)userdata;
   FrameGrabber* grabber = playUtil->grabber;
@@ -28,11 +27,14 @@ void audio_callback(void* userdata, Uint8* stream, int len) {
   static int outBufferSize = 0;
   static AVFrame* aFrame = av_frame_alloc();
 
-  int ret = grabber->grabAudioFrame(aFrame);
-  if (ret == 2) {
+
+
+   int ret = grabber->grabAudioFrame(aFrame);
+   if (ret == 2) {
     // cout << "play with ReSampler!" << endl;
     if (outBuffer == nullptr) {
       outBufferSize = reSampler->allocDataBuf(&outBuffer, aFrame->nb_samples);
+      cout << " --------- audio samples: " << aFrame->nb_samples << endl;
     } else {
       memset(outBuffer, 0, outBufferSize);
     }
@@ -47,7 +49,6 @@ void audio_callback(void* userdata, Uint8* stream, int len) {
   }
 }
 
-
 void playMediaFileAudio(const string& inputPath) {
   FrameGrabber grabber{inputPath, false, true};
   grabber.start();
@@ -58,7 +59,8 @@ void playMediaFileAudio(const string& inputPath) {
   AVSampleFormat inFormat = AVSampleFormat(grabber.getSampleFormat());
 
   AudioInfo inAudio(inLayout, inSampleRate, inChannels, inFormat);
-  AudioInfo outAudio = ReSampler::getDefaultAudioInfo();
+  AudioInfo outAudio = ReSampler::getDefaultAudioInfo(inSampleRate);
+  outAudio.sampleRate = inAudio.sampleRate;
 
   ReSampler reSampler(inAudio, outAudio);
 
@@ -72,7 +74,6 @@ void playMediaFileAudio(const string& inputPath) {
     cout << errMsg << endl;
     throw std::runtime_error(errMsg);
   }
-
 
   //--------------------- GET SDL audio READY -------------------
 
@@ -88,7 +89,7 @@ void playMediaFileAudio(const string& inputPath) {
   wanted_specs.freq = grabber.getSampleRate();
   wanted_specs.format = AUDIO_S16SYS;
   wanted_specs.channels = grabber.getChannels();
-  wanted_specs.samples = 1152;
+  wanted_specs.samples = 1024;
   wanted_specs.callback = audio_callback;
   wanted_specs.userdata = &playUtil;
 
