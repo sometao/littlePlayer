@@ -39,7 +39,9 @@ void audio_callback(void* userdata, Uint8* stream, int len) {
       memset(outBuffer, 0, outBufferSize);
     }
 
-    int outDataSize = reSampler->reSample(outBuffer, outBufferSize, aFrame);
+    int outSamples;
+    int outDataSize;
+    std::tie(outSamples, outDataSize) = reSampler->reSample(outBuffer, outBufferSize, aFrame);
 
     if (outDataSize != len) {
       cout << "WARNING: outDataSize[" << outDataSize << "] != len[" << len << "]" << endl;
@@ -89,7 +91,7 @@ void playMediaFileAudio(const string& inputPath) {
   wanted_specs.freq = grabber.getSampleRate();
   wanted_specs.format = AUDIO_S16SYS;
   wanted_specs.channels = grabber.getChannels();
-  wanted_specs.samples = 1024;
+  wanted_specs.samples = 1024; //set by output samples
   wanted_specs.callback = audio_callback;
   wanted_specs.userdata = &playUtil;
 

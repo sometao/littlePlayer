@@ -59,7 +59,9 @@ void feedAudioData(FrameGrabber* grabber, ffmpegUtil::ReSampler* reSampler, ALui
       memset(outBuffer, 0, outBufferSize);
     }
 
-    int outDataSize = reSampler->reSample(outBuffer, outBufferSize, aFrame);
+    int outSamples;
+    int outDataSize;
+    std::tie(outSamples, outDataSize) = reSampler->reSample(outBuffer, outBufferSize, aFrame);
 
     unsigned long ulFormat = 0;
 

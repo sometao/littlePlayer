@@ -15,9 +15,11 @@ extern "C" {
 // Refresh Event
 #define REFRESH_EVENT (SDL_USEREVENT + 1)
 
-#define BREAK_EVENT (SDL_USEREVENT + 2)
+#define ADD_REFRESH_EVENT (SDL_USEREVENT + 2)
 
-#define VIDEO_FINISH (SDL_USEREVENT + 3)
+#define BREAK_EVENT (SDL_USEREVENT + 3)
+
+#define VIDEO_FINISH (SDL_USEREVENT + 4)
 
 namespace {
 
@@ -61,6 +63,7 @@ void pktReader(PacketGrabber& pGrabber, AudioProcessor* aProcessor,
 }
 
 void picRefresher(int timeInterval) {
+  cout << "picRefresher timeInterval[" << timeInterval << "]" << endl;
   while (true) {
     SDL_Event event;
     event.type = REFRESH_EVENT;
@@ -69,7 +72,7 @@ void picRefresher(int timeInterval) {
   }
 }
 
-void startSdlVideo(VideoProcessor& vProcessor) {
+void startSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
   // ------------------- SDL video
   //--------------------- GET SDL window READY -------------------
 
@@ -99,29 +102,52 @@ void startSdlVideo(VideoProcessor& vProcessor) {
   // Use this function to update a rectangle within a planar
   // YV12 or IYUV texture with new pixel data.
   SDL_Event event;
-
-  std::thread refreshThread{picRefresher, 30};
+  auto frameRate = vProcessor.getFrameRate();
+  cout << "frame rate [" << frameRate << "]" << endl;
+  std::thread refreshThread{picRefresher, (int)(1000 / frameRate)};
   refreshThread.detach();
 
   while (true) {
     SDL_WaitEvent(&event);
 
-    if (event.type == REFRESH_EVENT) {
+    if (event.type == REFRESH_EVENT || event.type == ADD_REFRESH_EVENT) {
+      if (event.type == ADD_REFRESH_EVENT) {
+        cout << "ADD_REFRESH_EVENT  ADD_REFRESH_EVENT  ADD_REFRESH_EVENT  ADD_REFRESH_EVENT  ADD_REFRESH_EVENT" << endl;
+      }
+
+      if (audio != nullptr) {
+        auto vTs = vProcessor.getPts();
+        auto aTs = audio->getPts();
+        if (vTs > aTs&& vTs - aTs > 30) {
+          cout << "=================  vTs[" << vTs << "] aTs[" << aTs << "]: vTs > aTs && vTs - aTs > 30, SKIP A EVENT" << endl;
+          // skip a REFRESH_EVENT
+          continue;
+        } else if (vTs < aTs && aTs - vTs > 30) {
+          // add a REFRESH_EVENT
+          cout << "=================  vTs[" << vTs << "] aPts[" << aTs << "]: aTs > vTs && aTs - vTs > 30, ADD A EVENT" << endl;
+          SDL_Event additionalEvent;
+          additionalEvent.type = ADD_REFRESH_EVENT;
+          SDL_PushEvent(&additionalEvent);
+        } else {
+          //cout << "=================   vTs[" << vTs << "] aPts[" << aTs << "] nothing to do." << endl;
+        }
+      } 
+
       // Use this function to update a rectangle within a planar
       // YV12 or IYUV texture with new pixel data.
       auto pic = vProcessor.getFrame();
       SDL_UpdateYUVTexture(sdlTexture,    // the texture to update
-        NULL,          // a pointer to the rectangle of pixels to update, or
-                       // NULL to update the entire texture
-        pic->data[0],  // the raw pixel data for the Y plane
-        pic->linesize[0],  // the number of bytes between rows of pixel
-                           // data for the Y plane
-        pic->data[1],      // the raw pixel data for the U plane
-        pic->linesize[1],  // the number of bytes between rows of pixel
-                           // data for the U plane
-        pic->data[2],      // the raw pixel data for the V plane
-        pic->linesize[2]   // the number of bytes between rows of pixel
-                           // data for the V plane
+                           NULL,          // a pointer to the rectangle of pixels to update, or
+                                          // NULL to update the entire texture
+                           pic->data[0],  // the raw pixel data for the Y plane
+                           pic->linesize[0],  // the number of bytes between rows of pixel
+                                              // data for the Y plane
+                           pic->data[1],      // the raw pixel data for the U plane
+                           pic->linesize[1],  // the number of bytes between rows of pixel
+                                              // data for the U plane
+                           pic->data[2],      // the raw pixel data for the V plane
+                           pic->linesize[2]   // the number of bytes between rows of pixel
+                                              // data for the V plane
       );
 
       SDL_RenderClear(sdlRenderer);
@@ -131,12 +157,11 @@ void startSdlVideo(VideoProcessor& vProcessor) {
       vProcessor.refreshFrame();
 
     } else if (event.type == SDL_QUIT) {
-      //close window.
+      // close window.
       break;
     } else if (event.type == BREAK_EVENT) {
       break;
     }
-
 
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
   }
@@ -149,16 +174,27 @@ void startSdlAudio(AudioProcessor& aProcessor) {
   SDL_AudioSpec wanted_specs;
   SDL_AudioSpec specs;
 
-  cout << "grabber.getSampleFormat() = " << aProcessor.getSampleFormat() << endl;
-  cout << "grabber.getSampleRate() = " << aProcessor.getSampleRate() << endl;
+  cout << "aProcessor.getSampleFormat() = " << aProcessor.getSampleFormat() << endl;
+  cout << "aProcessor.getSampleRate() = " << aProcessor.getSampleRate() << endl;
   cout << "++" << endl;
+
+  int samples = -1;
+  while (true) {
+    cout << "getting audio samples." << endl;
+    samples = aProcessor.getSamples();
+    if (samples <= 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    } else {
+      cout << "get audio samples:" << samples << endl;
+      break;
+    }
+  }
 
   // set audio settings from codec info
   wanted_specs.freq = aProcessor.getSampleRate();
   wanted_specs.format = AUDIO_S16SYS;
   wanted_specs.channels = aProcessor.getChannels();
-  //wanted_specs.samples = 1152;
-  wanted_specs.samples = 1024;
+  wanted_specs.samples = samples;
   wanted_specs.callback = sdlAudioCallback;
   wanted_specs.userdata = &aProcessor;
 
@@ -166,8 +202,7 @@ void startSdlAudio(AudioProcessor& aProcessor) {
   SDL_AudioDeviceID audioDeviceID;
 
   // open audio device
-  audioDeviceID = SDL_OpenAudioDevice(  // [1]
-      nullptr, 0, &wanted_specs, &specs, 0);
+  audioDeviceID = SDL_OpenAudioDevice(nullptr, 0, &wanted_specs, &specs, 0);
 
   // SDL_OpenAudioDevice returns a valid device ID that is > 0 on success or 0 on failure
   if (audioDeviceID == 0) {
@@ -194,13 +229,17 @@ void startSdlAudio(AudioProcessor& aProcessor) {
 
   cout << "waiting audio play..." << endl;
 
-  SDL_PauseAudioDevice(audioDeviceID, 0);  // [2]
+  SDL_PauseAudioDevice(audioDeviceID, 0);
 }
 
 int play(const string& inputFile) {
   // create packet grabber
   PacketGrabber packetGrabber{inputFile};
   auto formatCtx = packetGrabber.getFormatCtx();
+  av_dump_format(formatCtx, 0, "", 0);
+
+  
+
 
   // create AudioProcessor
   AudioProcessor audioProcessor(formatCtx);
@@ -222,11 +261,12 @@ int play(const string& inputFile) {
     throw std::runtime_error(errMsg);
   }
 
-  startSdlAudio(audioProcessor);
+  std::thread startAudioThread(startSdlAudio, std::ref(audioProcessor));
+  startAudioThread.detach();
 
-  std::thread videoThread{startSdlVideo, std::ref(videoProcessor)};
+  std::thread videoThread{startSdlVideo, std::ref(videoProcessor), &audioProcessor};
 
-  //TODO Audio and video synchronization
+  // TODO Audio and video synchronization
 
   readerThread.join();
   videoThread.join();

@@ -50,6 +50,8 @@ class MediaProcessor : public PacketReceiver {
 
  protected:
   bool streamFinished = false;
+  std::atomic<uint64_t> currentTimestamp{0};
+  AVRational streamTimeBase{1, 0};
 
   condition_variable cv{};
   mutex nextDataMutex{};
@@ -86,6 +88,8 @@ class MediaProcessor : public PacketReceiver {
   }
 
   bool needPacket() { return packetList.size() < PKT_WAITING_SIZE; }
+
+  uint64_t getPts() { return currentTimestamp.load(); }
 };
 
 class AudioProcessor : public MediaProcessor {
@@ -106,7 +110,7 @@ class AudioProcessor : public MediaProcessor {
       if (targetPkt == nullptr) {
         auto pkt = getNextPkt();
         if (pkt == nullptr) {
-          cout << "WARN: no next pkt." << endl;
+          // cout << "WARN: no next pkt." << endl;
           return;
         }
         targetPkt = pkt.release();
@@ -151,8 +155,9 @@ class AudioProcessor : public MediaProcessor {
   AudioProcessor(AVFormatContext* formatCtx) {
     for (int i = 0; i < formatCtx->nb_streams; i++) {
       if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
+        streamTimeBase = formatCtx->streams[i]->time_base;
         audioIndex = i;
-        cout << "audio stream index = : [" << i << "]" << endl;
+        cout << "audio stream index = : [" << i << "] tb.n" << streamTimeBase.num << endl;
         break;
       }
     }
@@ -175,6 +180,24 @@ class AudioProcessor : public MediaProcessor {
 
   int getAudioIndex() const { return audioIndex; }
 
+  int getSamples() {
+    if (isNextFrameReady.load()) {
+      if (outBuffer == nullptr) {
+        outBufferSize = reSampler->allocDataBuf(&outBuffer, nextFrame->nb_samples);
+      }
+      // lock frame
+      int outSamples;
+      int outDataSize;
+      std::tie(outSamples, outDataSize) =
+          reSampler->reSample(outBuffer, outBufferSize, nextFrame);
+      // just check frame, not consume frame.
+      // unlock frame
+      return outSamples;
+    } else {
+      return -1;
+    }
+  }
+
   void writeAudioData(uint8_t* stream, int len) {
     if (outBuffer == nullptr) {
       if (isNextFrameReady.load()) {
@@ -190,7 +213,19 @@ class AudioProcessor : public MediaProcessor {
     if (isNextFrameReady.load()) {
       // TODO lock/consume/unlock/notify
       // lock nextFrame
-      int outDataSize = reSampler->reSample(outBuffer, outBufferSize, nextFrame);
+      int outSamples;
+      int outDataSize;
+      std::tie(outSamples, outDataSize) =
+          reSampler->reSample(outBuffer, outBufferSize, nextFrame);
+      nextFrame->pkt_duration;
+      aCodecCtx->time_base;
+      // aCodecCtx->pkt_timebase;
+      // nextFrame->pts;
+      // currentTimestamp.fetch_add(3000, std::memory_order_relaxed);
+      auto t = nextFrame->pts * av_q2d(streamTimeBase) * 1000;
+      //cout << "A: t=" << t << " pts=" << nextFrame->pts << endl;
+      currentTimestamp.store((uint64_t)t);
+
       isNextFrameReady.store(false);
       // unlock nextFrame
       // notify
@@ -252,7 +287,7 @@ class VideoProcessor : public MediaProcessor {
       if (targetPkt == nullptr) {
         auto pkt = getNextPkt();
         if (pkt == nullptr) {
-          cout << "WARN: no next pkt." << endl;
+          // cout << "WARN: no next pkt." << endl;
           return;
         }
         targetPkt = pkt.release();
@@ -297,7 +332,8 @@ class VideoProcessor : public MediaProcessor {
     for (int i = 0; i < formatCtx->nb_streams; i++) {
       if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
         videoIndex = i;
-        cout << "video stream index = : [" << i << "]" << endl;
+        streamTimeBase = formatCtx->streams[i]->time_base;
+        cout << "video stream index = : [" << i << "] tb.n" << streamTimeBase.num << endl;
         break;
       }
     }
@@ -328,6 +364,9 @@ class VideoProcessor : public MediaProcessor {
     if (isNextFrameReady.load()) {
       // TODO lock/consume/unlock/notify
       // lock nextFrame
+      auto t = nextFrame->pts * av_q2d(streamTimeBase) * 1000;
+      //cout << "----------- V: t=" << t << " pts=" << nextFrame->pts << endl;
+      currentTimestamp.store((uint64_t)t);
       sws_scale(sws_ctx, (uint8_t const* const*)nextFrame->data, nextFrame->linesize, 0,
                 vCodecCtx->height, outPic->data, outPic->linesize);
       // unlock nextFrame

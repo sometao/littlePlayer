@@ -92,7 +92,9 @@ void testPlayAudio() {
 void testPlayVideoWithAudio() {
 
   cout << "hello, testPlayVideoWithAudio." << endl;
-  string inputPath = "D:/data/video/v1_out10.mp4";
+  //string inputPath = "D:/data/video/v1_out10.mp4";
+  //string inputPath = "D:/data/video/p3_out1.mp4";
+  string inputPath = "D:/data/video/2019-08-15_16-39-54.mp4";
   playVideoWithAudio(inputPath);
 }
 

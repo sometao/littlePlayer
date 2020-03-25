@@ -27,6 +27,8 @@ extern "C" {
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <tuple>
+
 
 namespace ffmpegUtil {
 
@@ -37,8 +39,6 @@ using std::stringstream;
 
 struct ffUtils {
   static void initCodecContext(AVFormatContext* f, int streamIndex, AVCodecContext** ctx) {
-
-
     string codecTypeStr{};
     switch (f->streams[streamIndex]->codec->codec_type) {
       case AVMEDIA_TYPE_VIDEO:
@@ -79,9 +79,6 @@ struct ffUtils {
 
     cout << codecTypeStr << " [" << codecCtx->codec->name
          << "] codec context initialize success." << endl;
-
-    av_dump_format(f, streamIndex, "", 0);
-
   }
 };
 
@@ -91,9 +88,8 @@ class PacketGrabber {
   bool fileGotToEnd = false;
 
  public:
-  PacketGrabber(const string& uri) : inputUrl(uri) { 
-    
-    formatCtx = avformat_alloc_context(); 
+  PacketGrabber(const string& uri) : inputUrl(uri) {
+    formatCtx = avformat_alloc_context();
 
     if (avformat_open_input(&formatCtx, inputUrl.c_str(), NULL, NULL) != 0) {
       string errorMsg = "Can not open input file:";
@@ -109,8 +105,6 @@ class PacketGrabber {
       throw std::runtime_error(errorMsg);
     }
   }
-
-
 
   /*
    *  return
@@ -134,11 +128,8 @@ class PacketGrabber {
 
   AVFormatContext* getFormatCtx() const { return formatCtx; }
 
-  bool isFileEnd() const {return fileGotToEnd; }
-
+  bool isFileEnd() const { return fileGotToEnd; }
 };
-
-
 
 class FrameGrabber {
   const string inputUrl;
@@ -187,6 +178,7 @@ class FrameGrabber {
         if (av_read_frame(formatCtx, packet) >= 0) {
           currentPacketStreamIndex = packet->stream_index;
           if (packet->stream_index == videoIndex && videoEnabled) {
+            //cout << "- video packet pts=" << packet->pts << endl;
             // feed video packet to codec.
 
             ret = avcodec_send_packet(vCodecCtx, packet);
@@ -616,7 +608,6 @@ class ReSampler {
   const AudioInfo in;
   const AudioInfo out;
 
-
   static AudioInfo getDefaultAudioInfo(int sr) {
     int64_t layout = AV_CH_LAYOUT_STEREO;
     int sampleRate = sr;
@@ -677,10 +668,12 @@ class ReSampler {
     return guessOutSize;
   }
 
-  int reSample(uint8_t* dataBuffer, int dataBufferSize, const AVFrame* frame) {
+  std::tuple<int, int> reSample(uint8_t* dataBuffer, int dataBufferSize,
+                                const AVFrame* frame) {
     int outSamples = swr_convert(swr, &dataBuffer, dataBufferSize,
                                  (const uint8_t**)&frame->data[0], frame->nb_samples);
-    //cout << "reSample: nb_samples=" << frame->nb_samples << ", sample_rate = " << frame->sample_rate <<  ", outSamples=" << outSamples << endl;
+    // cout << "reSample: nb_samples=" << frame->nb_samples << ", sample_rate = " <<
+    // frame->sample_rate <<  ", outSamples=" << outSamples << endl;
     if (outSamples <= 0) {
       throw std::runtime_error("error: outSamples=" + outSamples);
     }
@@ -692,7 +685,7 @@ class ReSampler {
       throw std::runtime_error("error: outDataSize=" + outDataSize);
     }
 
-    return outDataSize;
+    return {outSamples, outDataSize};
   }
 };
 
