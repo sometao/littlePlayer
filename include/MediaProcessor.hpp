@@ -19,19 +19,10 @@ using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 
-// FIXME no need PacketDeleter
-struct PacketDeleter {  // É¾³ýÆ÷
-  void operator()(AVPacket* p) const { av_packet_free(&p); };
-};
 
-// FIXME no need PacketReceiver?
-class PacketReceiver {
- public:
-  virtual void pushPkt(unique_ptr<AVPacket, PacketDeleter> pkt) = 0;
-};
 
-class MediaProcessor : public PacketReceiver {
-  list<unique_ptr<AVPacket, PacketDeleter>> packetList{};
+class MediaProcessor {
+  list<unique_ptr<AVPacket>> packetList{};
   mutex pktListMutex{};
   int PKT_WAITING_SIZE = 10;
   bool started = false;
@@ -42,17 +33,20 @@ class MediaProcessor : public PacketReceiver {
 
   void nextFrameKeeper() {
     
-    int updatePeriod = 10;
-    // FIXME use lock with cv instead of isNextDataReady check every 'updatePeriod'.
+    std::unique_lock<std::mutex> lk{ nextDataMutex, std::defer_lock };
+
+    auto lastPrepareTime = std::chrono::system_clock::now();
     while (!streamFinished) {
-      if (!isNextDataReady.load()) {
-        auto t0 = std::chrono::system_clock::now();
-        prepareNextData();
-        auto t1 = std::chrono::system_clock::now();
-        std::chrono::duration<double> diff = t1 - t0;
-        //cout << "prepareNextData, index="<< streamIndex <<" time=" << (diff.count() * 1000) << "ms" <<endl;
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(updatePeriod));
+
+
+      lk.lock();
+      cv.wait(lk, [this] { return !isNextDataReady.load(); });
+      auto prepareTime = std::chrono::system_clock::now();
+      std::chrono::duration<double> diff = prepareTime - lastPrepareTime;
+      lastPrepareTime = prepareTime;
+      //cout << "+++++++++++  PrepareNextData, index="<< streamIndex <<", prepare intervalTime=" << (diff.count() * 1000) << "ms" <<endl;
+      prepareNextData();
+      lk.unlock();
     }
     cout << "next frame keeper finished, index=" << streamIndex << endl;
   }
@@ -73,7 +67,7 @@ class MediaProcessor : public PacketReceiver {
 
   virtual void generateNextData(AVFrame* f) = 0;
 
-  unique_ptr<AVPacket, PacketDeleter> getNextPkt() {
+  unique_ptr<AVPacket> getNextPkt() {
     if (noMorePkt) {
       return nullptr;
     }
@@ -96,7 +90,6 @@ class MediaProcessor : public PacketReceiver {
   }
 
   void prepareNextData() {
-    // FIXME deal with no next data.
     while (!isNextDataReady.load() && !streamFinished) {
       if (targetPkt == nullptr) {
         if (!noMorePkt) {
@@ -162,7 +155,7 @@ class MediaProcessor : public PacketReceiver {
     keeper.detach();
   }
 
-  void pushPkt(unique_ptr<AVPacket, PacketDeleter> pkt) override {
+  void pushPkt(unique_ptr<AVPacket> pkt) {
     pktListMutex.lock();
     packetList.push_back(std::move(pkt));
     pktListMutex.unlock();
@@ -239,19 +232,20 @@ class AudioProcessor : public MediaProcessor {
     }
 
     if (isNextDataReady.load()) {
+      nextDataMutex.lock();
       currentTimestamp.store(nextFrameTimestamp.load());
       if (outDataSize != len) {
         cout << "WARNING: outDataSize[" << outDataSize << "] != len[" << len << "]" << endl;
       }
       std::memcpy(stream, outBuffer, outDataSize);
       isNextDataReady.store(false);
-      // TODO notify prepare data.
+      nextDataMutex.unlock();
     } else {
       // if list is empty, silent will be written.
       cout << "WARNING: writeAudioData, audio data not ready." << endl;
       std::memcpy(stream, silenceBuff, len);
-      return;
     }
+    cv.notify_one();
   }
 
   int getChannels() const {
@@ -293,8 +287,6 @@ class VideoProcessor : public MediaProcessor {
 
  protected:
   void generateNextData(AVFrame* frame) override {
-    // TODO lock/consume/unlock/notify
-    // lock nextFrame
     auto t = frame->pts * av_q2d(streamTimeBase) * 1000;
     nextFrameTimestamp.store((uint64_t)t);
     sws_scale(sws_ctx, (uint8_t const* const*)frame->data, frame->linesize, 0,
@@ -347,9 +339,10 @@ class VideoProcessor : public MediaProcessor {
     if (isNextDataReady.load()) {
       currentTimestamp.store(nextFrameTimestamp.load());
       isNextDataReady.store(false);
-      // TODO notify prepare data.
+      cv.notify_one();
       return true;
     } else {
+      cv.notify_one();
       return false;
     }
   }

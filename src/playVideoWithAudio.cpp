@@ -41,7 +41,6 @@ void pktReader(PacketGrabber& pGrabber, AudioProcessor* aProcessor,
 
   while (!pGrabber.isFileEnd()) {
     while (aProcessor->needPacket() || vProcessor->needPacket()) {
-      PacketDeleter d{};
       AVPacket* packet = (AVPacket*)av_malloc(sizeof(AVPacket));
       int t = pGrabber.grabPacket(packet);
       if (t == -1) {
@@ -50,10 +49,10 @@ void pktReader(PacketGrabber& pGrabber, AudioProcessor* aProcessor,
         vProcessor->pushPkt(nullptr);
         break;
       } else if (t == audioIndex && aProcessor != nullptr) {
-        unique_ptr<AVPacket, PacketDeleter> uPacket(packet, d);
+        unique_ptr<AVPacket> uPacket(packet);
         aProcessor->pushPkt(std::move(uPacket));
       } else if (t == videoIndex && vProcessor != nullptr) {
-        unique_ptr<AVPacket, PacketDeleter> uPacket(packet, d);
+        unique_ptr<AVPacket> uPacket(packet);
         vProcessor->pushPkt(std::move(uPacket));
       } else {
         av_packet_free(&packet);
@@ -134,13 +133,15 @@ void playSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
         auto vTs = vProcessor.getPts();
         auto aTs = audio->getPts();
         if (vTs > aTs && vTs - aTs > 30) {
-          cout << "VIDEO FASTER ================= vTs - aTs [" << (vTs - aTs) << "]ms, SKIP A EVENT" << endl;
+          cout << "VIDEO FASTER ================= vTs - aTs [" << (vTs - aTs)
+               << "]ms, SKIP A EVENT" << endl;
           // skip a REFRESH_EVENT
           faster = false;
           slowCount++;
           continue;
         } else if (vTs < aTs && aTs - vTs > 30) {
-          cout << "VIDEO SLOWER ================= aTs - vTs =[" << (aTs - vTs) << "]ms, Faster" << endl;
+          cout << "VIDEO SLOWER ================= aTs - vTs =[" << (aTs - vTs) << "]ms, Faster"
+               << endl;
           faster = true;
           fastCount++;
         } else {
