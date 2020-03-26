@@ -43,13 +43,14 @@ class MediaProcessor : public PacketReceiver {
   void nextFrameKeeper() {
     int updatePeriod = 10;
     // FIXME use lock with cv instead of isNextDataReady check every 'updatePeriod'.
-    while (true) {
+    while (!streamFinished) {
       if (!isNextDataReady.load()) {
         prepareNextData();
       } else {
         std::this_thread::sleep_for(std::chrono::milliseconds(updatePeriod));
       }
     }
+    cout << "next frame keeper finished, index=" << streamIndex << endl;
   }
 
  protected:
@@ -93,20 +94,21 @@ class MediaProcessor : public PacketReceiver {
   void prepareNextData() {
     // FIXME deal with no next data.
     while (!isNextDataReady.load() && !streamFinished) {
-      
       if (targetPkt == nullptr) {
+
         if (!noMorePkt) {
           auto pkt = getNextPkt();
           if (pkt != nullptr) {
             targetPkt = pkt.release();
-          } else if(noMorePkt) {
+          } else if (noMorePkt) {
             targetPkt = nullptr;
           } else {
             return;
           }
         } else {
-          //no more pkt.
-          cout << "++++++++ no more pkt index=" << streamIndex << " finished=" << streamFinished << endl;
+          // no more pkt.
+          cout << "++++++++ no more pkt index=" << streamIndex
+               << " finished=" << streamFinished << endl;
         }
       }
 
@@ -136,7 +138,8 @@ class MediaProcessor : public PacketReceiver {
         generateNextData(nextFrame);
         isNextDataReady.store(true);
       } else if (ret == AVERROR_EOF) {
-        cout << "+++++++++++++++++++++++++++++ MediaProcessor no more output frames. index=" << streamIndex << endl;
+        cout << "+++++++++++++++++++++++++++++ MediaProcessor no more output frames. index="
+             << streamIndex << endl;
         streamFinished = true;
       } else if (ret == AVERROR(EAGAIN)) {
         // need more packet.
@@ -146,8 +149,6 @@ class MediaProcessor : public PacketReceiver {
         cout << errorMsg << endl;
         throw std::runtime_error(errorMsg);
       }
-
-
     }
   }
 

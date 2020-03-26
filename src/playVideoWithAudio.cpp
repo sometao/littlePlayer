@@ -47,7 +47,7 @@ void pktReader(PacketGrabber& pGrabber, AudioProcessor* aProcessor,
       AVPacket* packet = (AVPacket*)av_malloc(sizeof(AVPacket));
       int t = pGrabber.grabPacket(packet);
       if (t == -1) {
-        cout << "INFO: file finish."<< endl;
+        cout << "INFO: file finish." << endl;
         aProcessor->pushPkt(nullptr);
         vProcessor->pushPkt(nullptr);
         break;
@@ -67,9 +67,9 @@ void pktReader(PacketGrabber& pGrabber, AudioProcessor* aProcessor,
   cout << "INFO: pkt Reader thread finished." << endl;
 }
 
-void picRefresher(int timeInterval) {
+void picRefresher(int timeInterval, bool& exitRefresh) {
   cout << "picRefresher timeInterval[" << timeInterval << "]" << endl;
-  while (true) {
+  while (!exitRefresh) {
     SDL_Event event;
     event.type = REFRESH_EVENT;
     SDL_PushEvent(&event);
@@ -78,7 +78,6 @@ void picRefresher(int timeInterval) {
 }
 
 void startSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
-  // ------------------- SDL video
   //--------------------- GET SDL window READY -------------------
 
   auto width = vProcessor.getWidth();
@@ -109,31 +108,32 @@ void startSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) 
   SDL_Event event;
   auto frameRate = vProcessor.getFrameRate();
   cout << "frame rate [" << frameRate << "]" << endl;
-  std::thread refreshThread{picRefresher, (int)(1000 / frameRate)};
+
+  bool exitRefresh = false;
+  std::thread refreshThread{picRefresher, (int)(1000 / frameRate), std::ref(exitRefresh)};
   refreshThread.detach();
 
-  while (!vProcessor.isStreamFinished()) {
+  while (true) {
     SDL_WaitEvent(&event);
 
     if (event.type == REFRESH_EVENT || event.type == ADD_REFRESH_EVENT) {
-      if (event.type == ADD_REFRESH_EVENT) {
-        cout << "ADD_REFRESH_EVENT  ADD_REFRESH_EVENT  ADD_REFRESH_EVENT  ADD_REFRESH_EVENT  "
-                "ADD_REFRESH_EVENT"
-             << endl;
+      if (vProcessor.isStreamFinished()) {
+        exitRefresh = true;
+        continue; //skip REFRESH event.
       }
 
       if (audio != nullptr) {
         auto vTs = vProcessor.getPts();
         auto aTs = audio->getPts();
         if (vTs > aTs && vTs - aTs > 30) {
-          cout << "=================  vTs[" << vTs << "] aTs[" << aTs
-               << "]: vTs > aTs && vTs - aTs > 30, SKIP A EVENT" << endl;
+          //cout << "=================  vTs[" << vTs << "] aTs[" << aTs
+          //     << "]: vTs > aTs && vTs - aTs > 30, SKIP A EVENT" << endl;
           // skip a REFRESH_EVENT
           continue;
         } else if (vTs < aTs && aTs - vTs > 30) {
           // add a REFRESH_EVENT
-          cout << "=================  vTs[" << vTs << "] aPts[" << aTs
-               << "]: aTs > vTs && aTs - vTs > 30, ADD A EVENT" << endl;
+          //cout << "=================  vTs[" << vTs << "] aPts[" << aTs
+          //     << "]: aTs > vTs && aTs - vTs > 30, ADD A EVENT" << endl;
           SDL_Event additionalEvent;
           additionalEvent.type = ADD_REFRESH_EVENT;
           SDL_PushEvent(&additionalEvent);
@@ -162,19 +162,21 @@ void startSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) 
                                                 // data for the V plane
         );
       } else {
+        //FIXME check why.
         cout << "WARN: getFrame nullptr." << endl;
       }
       SDL_RenderClear(sdlRenderer);
       SDL_RenderCopy(sdlRenderer, sdlTexture, NULL, NULL);
       SDL_RenderPresent(sdlRenderer);
 
-      
       if (!vProcessor.refreshFrame()) {
+        //FIXME check why.
         cout << "vProcessor.refreshFrame nullptr" << endl;
         cout << "vProcessor.isStreamFinished = " << vProcessor.isStreamFinished() << endl;
       }
 
     } else if (event.type == SDL_QUIT) {
+      cout << "SDL screen got a SDL_QUIT." << endl;
       // close window.
       break;
     } else if (event.type == BREAK_EVENT) {
@@ -185,10 +187,7 @@ void startSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) 
   cout << "Sdl video thread finish." << endl;
 }
 
-// Uint32 audio device id
-SDL_AudioDeviceID audioDeviceID;
-
-void startSdlAudio(AudioProcessor& aProcessor) {
+void startSdlAudio(SDL_AudioDeviceID& audioDeviceID, AudioProcessor& aProcessor) {
   //--------------------- GET SDL audio READY -------------------
 
   // audio specs containers
@@ -218,8 +217,6 @@ void startSdlAudio(AudioProcessor& aProcessor) {
   wanted_specs.samples = samples;
   wanted_specs.callback = sdlAudioCallback;
   wanted_specs.userdata = &aProcessor;
-
-
 
   // open audio device
   audioDeviceID = SDL_OpenAudioDevice(nullptr, 0, &wanted_specs, &specs, 0);
@@ -278,7 +275,10 @@ int play(const string& inputFile) {
     throw std::runtime_error(errMsg);
   }
 
-  std::thread startAudioThread(startSdlAudio, std::ref(audioProcessor));
+  SDL_AudioDeviceID audioDeviceID;
+
+  std::thread startAudioThread(startSdlAudio, std::ref(audioDeviceID),
+                               std::ref(audioProcessor));
   startAudioThread.detach();
 
   std::thread videoThread{startSdlVideo, std::ref(videoProcessor), &audioProcessor};
@@ -286,16 +286,21 @@ int play(const string& inputFile) {
   // TODO Audio and video synchronization
 
   readerThread.join();
-  videoThread.join();
 
+  //waiting processors.
+  while (!audioProcessor.isStreamFinished() || !videoProcessor.isStreamFinished()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  cout << "Pause and Close audio" << endl;
   SDL_PauseAudioDevice(audioDeviceID, 1);
-
   SDL_CloseAudio();
 
-  //TODO close SDL thread safely.
+  // TODO close SDL thread safely.
 
-  cout << "seleeping...." << endl;
-  std::this_thread::sleep_for(std::chrono::milliseconds(30*1000));
+  cout << "videoThread join." << endl;
+  videoThread.join();
+
 
   return 0;
 }
