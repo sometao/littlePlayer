@@ -1,7 +1,5 @@
-### Little Player
+### Little Player v0.2.0
 ---
-
-
 
 
 #### Goal
@@ -25,7 +23,7 @@ Read file and play.
 
 #### Constraint 
 1. FFmpeg latest API
-1. Imitate JavaCV API
+1. Easy API
 1. SDL2
 1. C++11  
 1. Video only
