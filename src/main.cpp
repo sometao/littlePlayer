@@ -105,7 +105,7 @@ int main0(int argc, char* argv[]) {
   //testReadFileInfo();
   //testPlayVideo();
   //testPlayAudio();
-  //testPlayVideoWithAudio();
+  testPlayVideoWithAudio();
 
   return 0;
 }

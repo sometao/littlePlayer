@@ -11,6 +11,11 @@ Project for learning FFmpeg with C++.
 Read file and play. 
 
 #### Run
+1. compile code to littlePlayer.exe
+1. run: ./littlePlayer.exe /path/to/target/xxx.mp4
+
+
+#### for test
 - main.cpp 为入口;
 - 修改main方法中的注释
 - testPlayVideo 仅播放视频，根据自己的路径，修改inputPath
@@ -34,6 +39,7 @@ Read file and play.
 - [X] Read pixel format file and draw data on SDL.
 - [X] Read media file and draw picture using SDL.
 - [X] Read mp3 file and play it.
-- [ ] Play video with audio.
+- [X] Play video with audio.
+- [ ] play file with audio only or video only.
 
 

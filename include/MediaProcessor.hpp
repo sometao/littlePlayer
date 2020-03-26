@@ -24,27 +24,30 @@ class MediaProcessor {
   mutex pktListMutex{};
   int PKT_WAITING_SIZE = 3;
   bool started = false;
+  bool closed = false;
   bool streamFinished = false;
 
   AVFrame* nextFrame = av_frame_alloc();
   AVPacket* targetPkt = nullptr;
 
   void nextFrameKeeper() {
-    std::unique_lock<std::mutex> lk{nextDataMutex, std::defer_lock};
-
     auto lastPrepareTime = std::chrono::system_clock::now();
-    while (!streamFinished) {
-      lk.lock();
-      cv.wait(lk, [this] { return !isNextDataReady.load(); });
+    while (!streamFinished && started) {
+      std::unique_lock<std::mutex> lk{nextDataMutex};
+      cv.wait(lk, [this] { return !started || !isNextDataReady.load(); });
+      if (!started) {
+        break;
+      }
       auto prepareTime = std::chrono::system_clock::now();
       std::chrono::duration<double> diff = prepareTime - lastPrepareTime;
       lastPrepareTime = prepareTime;
       // cout << "+++++++++++  PrepareNextData, index="<< streamIndex <<", prepare
       // intervalTime=" << (diff.count() * 1000) << "ms" <<endl;
       prepareNextData();
-      lk.unlock();
     }
-    cout << "next frame keeper finished, index=" << streamIndex << endl;
+    cout << "[THREAD] next frame keeper finished, index=" << streamIndex << endl;
+    started = false;
+    closed = true;
   }
 
  protected:
@@ -67,19 +70,16 @@ class MediaProcessor {
     if (noMorePkt) {
       return nullptr;
     }
-    pktListMutex.lock();
+    std::lock_guard<std::mutex> lg(pktListMutex);
     if (packetList.empty()) {
-      pktListMutex.unlock();
       return nullptr;
     } else {
       auto pkt = std::move(packetList.front());
       if (pkt == nullptr) {
         noMorePkt = true;
-        pktListMutex.unlock();
         return nullptr;
       } else {
         packetList.pop_front();
-        pktListMutex.unlock();
         return pkt;
       }
     }
@@ -145,24 +145,53 @@ class MediaProcessor {
   }
 
  public:
+  ~MediaProcessor() { 
+
+    if (nextFrame != nullptr) {
+      av_frame_free(&nextFrame);
+    }
+
+    if (targetPkt != nullptr) {
+      av_packet_free(&targetPkt);
+    }
+
+    //very important here.
+    for (auto& p : packetList) {
+      auto pkt = p.release();
+      av_packet_free(&pkt);
+    }
+
+    cout << "~MediaProcessor called. index=" << streamIndex << endl;
+  }
   void start() {
     started = true;
     std::thread keeper{&MediaProcessor::nextFrameKeeper, this};
     keeper.detach();
   }
 
+  bool close() {
+    started = false;
+    int c = 5;
+    while (!closed && c > 0) {
+      c--;
+      cv.notify_one();
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    return closed;
+  }
+
+  bool isClosed() { return closed; }
+
   void pushPkt(unique_ptr<AVPacket> pkt) {
-    pktListMutex.lock();
+    std::lock_guard<std::mutex> lg(pktListMutex);
     packetList.push_back(std::move(pkt));
-    pktListMutex.unlock();
   }
   bool isStreamFinished() { return streamFinished; }
 
   bool needPacket() {
     bool need;
-    pktListMutex.lock();
+    std::lock_guard<std::mutex> lg(pktListMutex);
     need = packetList.size() < PKT_WAITING_SIZE;
-    pktListMutex.unlock();
     return need;
   }
 
@@ -170,7 +199,7 @@ class MediaProcessor {
 };
 
 class AudioProcessor : public MediaProcessor {
-  ffmpegUtil::ReSampler* reSampler = nullptr;
+  std::unique_ptr<ffmpegUtil::ReSampler> reSampler{};
 
   uint8_t* outBuffer = nullptr;
   int outBufferSize = -1;
@@ -192,7 +221,19 @@ class AudioProcessor : public MediaProcessor {
     nextFrameTimestamp.store((uint64_t)t);
   }
 
+
+
  public:
+  AudioProcessor(const AudioProcessor&) = delete;
+  AudioProcessor(AudioProcessor&&) noexcept = delete;
+  AudioProcessor operator=(const AudioProcessor&) = delete;
+  ~AudioProcessor() { 
+    if (outBuffer != nullptr) {
+      av_freep(&outBuffer);
+    }
+    cout << "~AudioProcessor() called." << endl; 
+  }
+
   AudioProcessor(AVFormatContext* formatCtx) {
     for (int i = 0; i < formatCtx->nb_streams; i++) {
       if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
@@ -216,7 +257,7 @@ class AudioProcessor : public MediaProcessor {
     inAudio = ffmpegUtil::AudioInfo(inLayout, inSampleRate, inChannels, inFormat);
     outAudio = ffmpegUtil::ReSampler::getDefaultAudioInfo(inSampleRate);
 
-    reSampler = new ffmpegUtil::ReSampler(inAudio, outAudio);
+    reSampler.reset(new ffmpegUtil::ReSampler(inAudio, outAudio));
   }
 
   int getAudioIndex() const { return streamIndex; }
@@ -231,14 +272,13 @@ class AudioProcessor : public MediaProcessor {
     }
 
     if (isNextDataReady.load()) {
-      nextDataMutex.lock();
+      std::lock_guard<std::mutex> lock(nextDataMutex);
       currentTimestamp.store(nextFrameTimestamp.load());
       if (outDataSize != len) {
         cout << "WARNING: outDataSize[" << outDataSize << "] != len[" << len << "]" << endl;
       }
       std::memcpy(stream, outBuffer, outDataSize);
       isNextDataReady.store(false);
-      nextDataMutex.unlock();
     } else {
       // if list is empty, silent will be written.
       cout << "WARNING: writeAudioData, audio data not ready." << endl;
@@ -255,9 +295,7 @@ class AudioProcessor : public MediaProcessor {
     }
   }
 
-  int getOutChannels() const {
-    return outAudio.channels;
-  }
+  int getOutChannels() const { return outAudio.channels; }
 
   int getInChannleLayout() const {
     if (codecCtx != nullptr) {
@@ -266,10 +304,8 @@ class AudioProcessor : public MediaProcessor {
       throw std::runtime_error("can not getChannleLayout.");
     }
   }
-  
-  int getOutChannleLayout() const {
-    return outAudio.layout;
-  }
+
+  int getOutChannleLayout() const { return outAudio.layout; }
 
   int getInSampleRate() const {
     if (codecCtx != nullptr) {
@@ -278,10 +314,8 @@ class AudioProcessor : public MediaProcessor {
       throw std::runtime_error("can not getSampleRate.");
     }
   }
-  
-  int getOutSampleRate() const {
-    return outAudio.sampleRate;
-  }
+
+  int getOutSampleRate() const { return outAudio.sampleRate; }
 
   int getSampleFormat() const {
     if (codecCtx != nullptr) {
@@ -306,6 +340,21 @@ class VideoProcessor : public MediaProcessor {
   }
 
  public:
+  VideoProcessor(const VideoProcessor&) = delete;
+  VideoProcessor(VideoProcessor&&) noexcept = delete;
+  VideoProcessor operator=(const VideoProcessor&) = delete;
+  ~VideoProcessor() { 
+    if (sws_ctx != nullptr) {
+      sws_freeContext(sws_ctx);
+      sws_ctx = nullptr;
+    }
+
+    if (outPic != nullptr) {
+      av_frame_free(&outPic);
+    }
+    cout << "~VideoProcessor() called." << endl; 
+  }
+
   VideoProcessor(AVFormatContext* formatCtx) {
     for (int i = 0; i < formatCtx->nb_streams; i++) {
       if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {

@@ -29,7 +29,6 @@ extern "C" {
 #include <sstream>
 #include <tuple>
 
-
 namespace ffmpegUtil {
 
 using std::cout;
@@ -91,6 +90,7 @@ class PacketGrabber {
   int audioIndex = -1;
 
  public:
+  ~PacketGrabber() { cout << "~PacketGrabber called." << endl; }
   PacketGrabber(const string& uri) : inputUrl(uri) {
     formatCtx = avformat_alloc_context();
 
@@ -145,8 +145,8 @@ class PacketGrabber {
 
   bool isFileEnd() const { return fileGotToEnd; }
 
-  int getAudioIndex() const {return audioIndex;}
-  int getVideoIndex() const {return videoIndex;}
+  int getAudioIndex() const { return audioIndex; }
+  int getVideoIndex() const { return videoIndex; }
 };
 
 class FrameGrabber {
@@ -196,7 +196,7 @@ class FrameGrabber {
         if (av_read_frame(formatCtx, packet) >= 0) {
           currentPacketStreamIndex = packet->stream_index;
           if (packet->stream_index == videoIndex && videoEnabled) {
-            //cout << "- video packet pts=" << packet->pts << endl;
+            // cout << "- video packet pts=" << packet->pts << endl;
             // feed video packet to codec.
 
             ret = avcodec_send_packet(vCodecCtx, packet);
@@ -630,6 +630,16 @@ class ReSampler {
   SwrContext* swr;
 
  public:
+  ReSampler(const ReSampler&) = delete;
+  ReSampler(ReSampler&&) noexcept = delete;
+  ReSampler operator=(const ReSampler&) = delete;
+  ~ReSampler() {
+    cout << "~ReSampler called." << endl;
+    if (swr != nullptr) {
+      swr_free(&swr);
+    }
+  }
+
   const AudioInfo in;
   const AudioInfo out;
 

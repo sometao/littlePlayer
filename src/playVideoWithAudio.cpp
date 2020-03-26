@@ -39,7 +39,7 @@ void pktReader(PacketGrabber& pGrabber, AudioProcessor* aProcessor,
   int audioIndex = aProcessor->getAudioIndex();
   int videoIndex = vProcessor->getVideoIndex();
 
-  while (!pGrabber.isFileEnd()) {
+  while (!pGrabber.isFileEnd() && !aProcessor->isClosed() && !vProcessor->isClosed()) {
     while (aProcessor->needPacket() || vProcessor->needPacket()) {
       AVPacket* packet = (AVPacket*)av_malloc(sizeof(AVPacket));
       int t = pGrabber.grabPacket(packet);
@@ -61,7 +61,7 @@ void pktReader(PacketGrabber& pGrabber, AudioProcessor* aProcessor,
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(CHECK_PERIOD));
   }
-  cout << "INFO: pkt Reader thread finished." << endl;
+  cout << "[THREAD] INFO: pkt Reader thread finished." << endl;
 }
 
 void picRefresher(int timeInterval, bool& exitRefresh, bool& faster) {
@@ -76,7 +76,7 @@ void picRefresher(int timeInterval, bool& exitRefresh, bool& faster) {
       std::this_thread::sleep_for(std::chrono::milliseconds(timeInterval));
     }
   }
-  cout << "picRefresher finished." << endl;
+  cout << "[THREAD] picRefresher thread finished." << endl;
 }
 
 void playSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
@@ -115,7 +115,6 @@ void playSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
   bool faster = false;
   std::thread refreshThread{picRefresher, (int)(1000 / frameRate), std::ref(exitRefresh),
                             std::ref(faster)};
-  refreshThread.detach();
 
   int failCount = 0;
   int fastCount = 0;
@@ -183,6 +182,7 @@ void playSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
 
     } else if (event.type == SDL_QUIT) {
       cout << "SDL screen got a SDL_QUIT." << endl;
+      exitRefresh = true;
       // close window.
       break;
     } else if (event.type == BREAK_EVENT) {
@@ -190,7 +190,8 @@ void playSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
     }
   }
 
-  cout << "Sdl video thread finish: failCount = " << failCount << ", fastCount = " << fastCount
+  refreshThread.join();
+  cout << "[THREAD] Sdl video thread finish: failCount = " << failCount << ", fastCount = " << fastCount
        << ", slowCount = " << slowCount << endl;
 }
 
@@ -252,9 +253,37 @@ void startSdlAudio(SDL_AudioDeviceID& audioDeviceID, AudioProcessor& aProcessor)
   cout << "specs.silence:" << (int)specs.silence << endl;
   cout << "specs.samples:" << (int)specs.samples << endl;
 
-  cout << "waiting audio play..." << endl;
 
   SDL_PauseAudioDevice(audioDeviceID, 0);
+  cout << "[THREAD] audio start thread finish." << endl;
+}
+
+int play_debug(const string& inputFile) {
+  // create packet grabber
+  PacketGrabber packetGrabber{ inputFile };
+  auto formatCtx = packetGrabber.getFormatCtx();
+  av_dump_format(formatCtx, 0, "", 0);
+
+  VideoProcessor videoProcessor(formatCtx);
+  videoProcessor.start();
+  cout << " ---   1   ---------- " << endl;
+
+  AudioProcessor audioProcessor(formatCtx);
+  audioProcessor.start();
+  cout << " ---   2   ---------- " << endl;
+
+  std::thread readerThread{ pktReader, std::ref(packetGrabber), &audioProcessor, &videoProcessor };
+
+  cout << " ---   3   ---------- " << endl;
+  videoProcessor.close();
+  audioProcessor.close();
+  cout << " ---   4   ---------- " << endl;
+  cout << " ---   5   ---------- " << endl;
+  readerThread.join();
+  cout << " ---   6   ---------- " << endl;
+
+  return 0;
+
 }
 
 int play(const string& inputFile) {
@@ -263,12 +292,14 @@ int play(const string& inputFile) {
   auto formatCtx = packetGrabber.getFormatCtx();
   av_dump_format(formatCtx, 0, "", 0);
 
+  VideoProcessor videoProcessor(formatCtx);
+  videoProcessor.start();
+
   // create AudioProcessor
   AudioProcessor audioProcessor(formatCtx);
   audioProcessor.start();
 
-  VideoProcessor videoProcessor(formatCtx);
-  videoProcessor.start();
+
 
   // start pkt reader
   std::thread readerThread{pktReader, std::ref(packetGrabber), &audioProcessor,
@@ -282,30 +313,41 @@ int play(const string& inputFile) {
     cout << errMsg << endl;
     throw std::runtime_error(errMsg);
   }
+  
 
   SDL_AudioDeviceID audioDeviceID;
 
   std::thread startAudioThread(startSdlAudio, std::ref(audioDeviceID),
                                std::ref(audioProcessor));
-  startAudioThread.detach();
+  startAudioThread.join();
 
   std::thread videoThread{playSdlVideo, std::ref(videoProcessor), &audioProcessor};
 
-  readerThread.join();
-
-  // waiting processors.
-  while (!audioProcessor.isStreamFinished() || !videoProcessor.isStreamFinished()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
 
   cout << "videoThread join." << endl;
   videoThread.join();
 
-  cout << "Pause and Close audio" << endl;
+  int aa1 = 1;
+  int aa2 = 1;
+  int aa3 = 1;
+
+
   SDL_PauseAudioDevice(audioDeviceID, 1);
   SDL_CloseAudio();
 
+  bool r;
+  r = audioProcessor.close();
+  cout << "audioProcessor closed: " << r << endl;
+  r = videoProcessor.close();
+  cout << "videoProcessor closed: " << r << endl;
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+  readerThread.join();
+  cout << "Pause and Close audio" << endl;
+
   return 0;
+
 }
 
 }  // namespace
