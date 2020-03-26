@@ -15,8 +15,6 @@ extern "C" {
 // Refresh Event
 #define REFRESH_EVENT (SDL_USEREVENT + 1)
 
-#define ADD_REFRESH_EVENT (SDL_USEREVENT + 2)
-
 #define BREAK_EVENT (SDL_USEREVENT + 3)
 
 #define VIDEO_FINISH (SDL_USEREVENT + 4)
@@ -35,7 +33,7 @@ void sdlAudioCallback(void* userdata, Uint8* stream, int len) {
 
 void pktReader(PacketGrabber& pGrabber, AudioProcessor* aProcessor,
                VideoProcessor* vProcessor) {
-  const int CHECK_PERIOD = 15;
+  const int CHECK_PERIOD = 10;
 
   cout << "INFO: pkt Reader thread started." << endl;
   int audioIndex = aProcessor->getAudioIndex();
@@ -67,17 +65,22 @@ void pktReader(PacketGrabber& pGrabber, AudioProcessor* aProcessor,
   cout << "INFO: pkt Reader thread finished." << endl;
 }
 
-void picRefresher(int timeInterval, bool& exitRefresh) {
+void picRefresher(int timeInterval, bool& exitRefresh, bool& faster) {
   cout << "picRefresher timeInterval[" << timeInterval << "]" << endl;
   while (!exitRefresh) {
     SDL_Event event;
     event.type = REFRESH_EVENT;
     SDL_PushEvent(&event);
-    std::this_thread::sleep_for(std::chrono::milliseconds(timeInterval));
+    if (faster) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(timeInterval / 2));
+    } else {
+      std::this_thread::sleep_for(std::chrono::milliseconds(timeInterval));
+    }
   }
+  cout << "picRefresher finished." << endl;
 }
 
-void startSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
+void playSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
   //--------------------- GET SDL window READY -------------------
 
   auto width = vProcessor.getWidth();
@@ -110,34 +113,38 @@ void startSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) 
   cout << "frame rate [" << frameRate << "]" << endl;
 
   bool exitRefresh = false;
-  std::thread refreshThread{picRefresher, (int)(1000 / frameRate), std::ref(exitRefresh)};
+  bool faster = false;
+  std::thread refreshThread{picRefresher, (int)(1000 / frameRate), std::ref(exitRefresh),
+                            std::ref(faster)};
   refreshThread.detach();
 
+  int failCount = 0;
+  int fastCount = 0;
+  int slowCount = 0;
   while (true) {
     SDL_WaitEvent(&event);
 
-    if (event.type == REFRESH_EVENT || event.type == ADD_REFRESH_EVENT) {
+    if (event.type == REFRESH_EVENT) {
       if (vProcessor.isStreamFinished()) {
         exitRefresh = true;
-        continue; //skip REFRESH event.
+        continue;  // skip REFRESH event.
       }
 
       if (audio != nullptr) {
         auto vTs = vProcessor.getPts();
         auto aTs = audio->getPts();
         if (vTs > aTs && vTs - aTs > 30) {
-          //cout << "=================  vTs[" << vTs << "] aTs[" << aTs
-          //     << "]: vTs > aTs && vTs - aTs > 30, SKIP A EVENT" << endl;
+          cout << "VIDEO FASTER ================= vTs - aTs [" << (vTs - aTs) << "]ms, SKIP A EVENT" << endl;
           // skip a REFRESH_EVENT
+          faster = false;
+          slowCount++;
           continue;
         } else if (vTs < aTs && aTs - vTs > 30) {
-          // add a REFRESH_EVENT
-          //cout << "=================  vTs[" << vTs << "] aPts[" << aTs
-          //     << "]: aTs > vTs && aTs - vTs > 30, ADD A EVENT" << endl;
-          SDL_Event additionalEvent;
-          additionalEvent.type = ADD_REFRESH_EVENT;
-          SDL_PushEvent(&additionalEvent);
+          cout << "VIDEO SLOWER ================= aTs - vTs =[" << (aTs - vTs) << "]ms, Faster" << endl;
+          faster = true;
+          fastCount++;
         } else {
+          faster = false;
           // cout << "=================   vTs[" << vTs << "] aPts[" << aTs << "] nothing to
           // do." << endl;
         }
@@ -161,18 +168,16 @@ void startSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) 
                              pic->linesize[2]   // the number of bytes between rows of pixel
                                                 // data for the V plane
         );
-      } else {
-        //FIXME check why.
-        cout << "WARN: getFrame nullptr." << endl;
-      }
-      SDL_RenderClear(sdlRenderer);
-      SDL_RenderCopy(sdlRenderer, sdlTexture, NULL, NULL);
-      SDL_RenderPresent(sdlRenderer);
+        SDL_RenderClear(sdlRenderer);
+        SDL_RenderCopy(sdlRenderer, sdlTexture, NULL, NULL);
+        SDL_RenderPresent(sdlRenderer);
 
-      if (!vProcessor.refreshFrame()) {
-        //FIXME check why.
-        cout << "vProcessor.refreshFrame nullptr" << endl;
-        cout << "vProcessor.isStreamFinished = " << vProcessor.isStreamFinished() << endl;
+        if (!vProcessor.refreshFrame()) {
+          cout << "WARN: vProcessor.refreshFrame false" << endl;
+        }
+      } else {
+        failCount++;
+        cout << "WARN: getFrame fail. failCount = " << failCount << endl;
       }
 
     } else if (event.type == SDL_QUIT) {
@@ -184,7 +189,8 @@ void startSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) 
     }
   }
 
-  cout << "Sdl video thread finish." << endl;
+  cout << "Sdl video thread finish: failCount = " << failCount << ", fastCount = " << fastCount
+       << ", slowCount = " << slowCount << endl;
 }
 
 void startSdlAudio(SDL_AudioDeviceID& audioDeviceID, AudioProcessor& aProcessor) {
@@ -281,13 +287,11 @@ int play(const string& inputFile) {
                                std::ref(audioProcessor));
   startAudioThread.detach();
 
-  std::thread videoThread{startSdlVideo, std::ref(videoProcessor), &audioProcessor};
-
-  // TODO Audio and video synchronization
+  std::thread videoThread{playSdlVideo, std::ref(videoProcessor), &audioProcessor};
 
   readerThread.join();
 
-  //waiting processors.
+  // waiting processors.
   while (!audioProcessor.isStreamFinished() || !videoProcessor.isStreamFinished()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
@@ -296,11 +300,8 @@ int play(const string& inputFile) {
   SDL_PauseAudioDevice(audioDeviceID, 1);
   SDL_CloseAudio();
 
-  // TODO close SDL thread safely.
-
   cout << "videoThread join." << endl;
   videoThread.join();
-
 
   return 0;
 }

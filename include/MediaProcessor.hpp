@@ -33,7 +33,7 @@ class PacketReceiver {
 class MediaProcessor : public PacketReceiver {
   list<unique_ptr<AVPacket, PacketDeleter>> packetList{};
   mutex pktListMutex{};
-  int PKT_WAITING_SIZE = 3;
+  int PKT_WAITING_SIZE = 10;
   bool started = false;
   bool streamFinished = false;
 
@@ -41,14 +41,18 @@ class MediaProcessor : public PacketReceiver {
   AVPacket* targetPkt = nullptr;
 
   void nextFrameKeeper() {
+    
     int updatePeriod = 10;
     // FIXME use lock with cv instead of isNextDataReady check every 'updatePeriod'.
     while (!streamFinished) {
       if (!isNextDataReady.load()) {
+        auto t0 = std::chrono::system_clock::now();
         prepareNextData();
-      } else {
-        std::this_thread::sleep_for(std::chrono::milliseconds(updatePeriod));
+        auto t1 = std::chrono::system_clock::now();
+        std::chrono::duration<double> diff = t1 - t0;
+        //cout << "prepareNextData, index="<< streamIndex <<" time=" << (diff.count() * 1000) << "ms" <<endl;
       }
+      std::this_thread::sleep_for(std::chrono::milliseconds(updatePeriod));
     }
     cout << "next frame keeper finished, index=" << streamIndex << endl;
   }
@@ -95,7 +99,6 @@ class MediaProcessor : public PacketReceiver {
     // FIXME deal with no next data.
     while (!isNextDataReady.load() && !streamFinished) {
       if (targetPkt == nullptr) {
-
         if (!noMorePkt) {
           auto pkt = getNextPkt();
           if (pkt != nullptr) {
@@ -166,7 +169,13 @@ class MediaProcessor : public PacketReceiver {
   }
   bool isStreamFinished() { return streamFinished; }
 
-  bool needPacket() { return packetList.size() < PKT_WAITING_SIZE; }
+  bool needPacket() { 
+    bool need;
+    pktListMutex.lock();
+    need = packetList.size() < PKT_WAITING_SIZE;
+    pktListMutex.unlock();
+    return need;
+  }
 
   uint64_t getPts() { return currentTimestamp.load(); }
 };
