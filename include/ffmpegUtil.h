@@ -87,6 +87,9 @@ class PacketGrabber {
   AVFormatContext* formatCtx = nullptr;
   bool fileGotToEnd = false;
 
+  int videoIndex = -1;
+  int audioIndex = -1;
+
  public:
   PacketGrabber(const string& uri) : inputUrl(uri) {
     formatCtx = avformat_alloc_context();
@@ -103,6 +106,18 @@ class PacketGrabber {
       errorMsg += inputUrl;
       cout << errorMsg << endl;
       throw std::runtime_error(errorMsg);
+    }
+
+    for (int i = 0; i < formatCtx->nb_streams; i++) {
+      if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO && videoIndex == -1) {
+        videoIndex = i;
+        cout << "video stream index = : [" << i << "]" << endl;
+      }
+
+      if (formatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO && audioIndex == -1) {
+        audioIndex = i;
+        cout << "audio stream index = : [" << i << "]" << endl;
+      }
     }
   }
 
@@ -129,6 +144,9 @@ class PacketGrabber {
   AVFormatContext* getFormatCtx() const { return formatCtx; }
 
   bool isFileEnd() const { return fileGotToEnd; }
+
+  int getAudioIndex() const {return audioIndex;}
+  int getVideoIndex() const {return videoIndex;}
 };
 
 class FrameGrabber {
@@ -596,6 +614,13 @@ struct AudioInfo {
   int sampleRate;
   int channels;
   AVSampleFormat format;
+
+  AudioInfo() {
+    layout = -1;
+    sampleRate = -1;
+    channels = -1;
+    format = AV_SAMPLE_FMT_S16;
+  }
 
   AudioInfo(int64_t l, int rate, int c, AVSampleFormat f)
       : layout(l), sampleRate(rate), channels(c), format(f) {}

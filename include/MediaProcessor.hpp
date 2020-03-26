@@ -19,12 +19,10 @@ using std::shared_ptr;
 using std::string;
 using std::unique_ptr;
 
-
-
 class MediaProcessor {
   list<unique_ptr<AVPacket>> packetList{};
   mutex pktListMutex{};
-  int PKT_WAITING_SIZE = 10;
+  int PKT_WAITING_SIZE = 3;
   bool started = false;
   bool streamFinished = false;
 
@@ -32,19 +30,17 @@ class MediaProcessor {
   AVPacket* targetPkt = nullptr;
 
   void nextFrameKeeper() {
-    
-    std::unique_lock<std::mutex> lk{ nextDataMutex, std::defer_lock };
+    std::unique_lock<std::mutex> lk{nextDataMutex, std::defer_lock};
 
     auto lastPrepareTime = std::chrono::system_clock::now();
     while (!streamFinished) {
-
-
       lk.lock();
       cv.wait(lk, [this] { return !isNextDataReady.load(); });
       auto prepareTime = std::chrono::system_clock::now();
       std::chrono::duration<double> diff = prepareTime - lastPrepareTime;
       lastPrepareTime = prepareTime;
-      //cout << "+++++++++++  PrepareNextData, index="<< streamIndex <<", prepare intervalTime=" << (diff.count() * 1000) << "ms" <<endl;
+      // cout << "+++++++++++  PrepareNextData, index="<< streamIndex <<", prepare
+      // intervalTime=" << (diff.count() * 1000) << "ms" <<endl;
       prepareNextData();
       lk.unlock();
     }
@@ -162,7 +158,7 @@ class MediaProcessor {
   }
   bool isStreamFinished() { return streamFinished; }
 
-  bool needPacket() { 
+  bool needPacket() {
     bool need;
     pktListMutex.lock();
     need = packetList.size() < PKT_WAITING_SIZE;
@@ -180,6 +176,9 @@ class AudioProcessor : public MediaProcessor {
   int outBufferSize = -1;
   int outDataSize = -1;
   int outSamples = -1;
+
+  ffmpegUtil::AudioInfo inAudio;
+  ffmpegUtil::AudioInfo outAudio;
 
  protected:
   void generateNextData(AVFrame* frame) final override {
@@ -214,8 +213,8 @@ class AudioProcessor : public MediaProcessor {
     int inChannels = codecCtx->channels;
     AVSampleFormat inFormat = codecCtx->sample_fmt;
 
-    ffmpegUtil::AudioInfo inAudio(inLayout, inSampleRate, inChannels, inFormat);
-    ffmpegUtil::AudioInfo outAudio = ffmpegUtil::ReSampler::getDefaultAudioInfo(inSampleRate);
+    inAudio = ffmpegUtil::AudioInfo(inLayout, inSampleRate, inChannels, inFormat);
+    outAudio = ffmpegUtil::ReSampler::getDefaultAudioInfo(inSampleRate);
 
     reSampler = new ffmpegUtil::ReSampler(inAudio, outAudio);
   }
@@ -248,7 +247,7 @@ class AudioProcessor : public MediaProcessor {
     cv.notify_one();
   }
 
-  int getChannels() const {
+  int getInChannels() const {
     if (codecCtx != nullptr) {
       return codecCtx->channels;
     } else {
@@ -256,20 +255,32 @@ class AudioProcessor : public MediaProcessor {
     }
   }
 
-  int getChannleLayout() const {
+  int getOutChannels() const {
+    return outAudio.channels;
+  }
+
+  int getInChannleLayout() const {
     if (codecCtx != nullptr) {
       return codecCtx->channel_layout;
     } else {
       throw std::runtime_error("can not getChannleLayout.");
     }
   }
+  
+  int getOutChannleLayout() const {
+    return outAudio.layout;
+  }
 
-  int getSampleRate() const {
+  int getInSampleRate() const {
     if (codecCtx != nullptr) {
       return codecCtx->sample_rate;
     } else {
       throw std::runtime_error("can not getSampleRate.");
     }
+  }
+  
+  int getOutSampleRate() const {
+    return outAudio.sampleRate;
   }
 
   int getSampleFormat() const {

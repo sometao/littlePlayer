@@ -100,14 +100,26 @@ void testPlayVideoWithAudio() {
 
 
 
-int main(int argc, char* argv[]) {
+int main0(int argc, char* argv[]) {
   cout << "hello, little player." << endl;
   //testReadFileInfo();
-
   //testPlayVideo();
   //testPlayAudio();
+  //testPlayVideoWithAudio();
 
-  testPlayVideoWithAudio();
+  return 0;
+}
+
+int main(int argc, char* argv[]) {
+  cout << "hello, little player." << endl;
+  if (argc != 2) {
+    cout << "input error:" << endl;
+    cout << "arg[1] should be the media file." << endl;
+  } else {
+    string inputPath = argv[1];
+    cout << "play file:" << inputPath << endl;
+    playVideoWithAudio(inputPath);
+  }
 
   return 0;
 }

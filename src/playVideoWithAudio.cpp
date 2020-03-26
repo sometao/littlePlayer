@@ -202,7 +202,8 @@ void startSdlAudio(SDL_AudioDeviceID& audioDeviceID, AudioProcessor& aProcessor)
   SDL_AudioSpec specs;
 
   cout << "aProcessor.getSampleFormat() = " << aProcessor.getSampleFormat() << endl;
-  cout << "aProcessor.getSampleRate() = " << aProcessor.getSampleRate() << endl;
+  cout << "aProcessor.getSampleRate() = " << aProcessor.getOutSampleRate() << endl;
+  cout << "aProcessor.getChannels() = " << aProcessor.getOutChannels() << endl;
   cout << "++" << endl;
 
   int samples = -1;
@@ -218,9 +219,9 @@ void startSdlAudio(SDL_AudioDeviceID& audioDeviceID, AudioProcessor& aProcessor)
   }
 
   // set audio settings from codec info
-  wanted_specs.freq = aProcessor.getSampleRate();
+  wanted_specs.freq = aProcessor.getOutSampleRate();
   wanted_specs.format = AUDIO_S16SYS;
-  wanted_specs.channels = aProcessor.getChannels();
+  wanted_specs.channels = aProcessor.getOutChannels();
   wanted_specs.samples = samples;
   wanted_specs.callback = sdlAudioCallback;
   wanted_specs.userdata = &aProcessor;
@@ -297,12 +298,12 @@ int play(const string& inputFile) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
+  cout << "videoThread join." << endl;
+  videoThread.join();
+
   cout << "Pause and Close audio" << endl;
   SDL_PauseAudioDevice(audioDeviceID, 1);
   SDL_CloseAudio();
-
-  cout << "videoThread join." << endl;
-  videoThread.join();
 
   return 0;
 }
