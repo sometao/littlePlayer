@@ -154,6 +154,10 @@ class MediaProcessor {
     if (targetPkt != nullptr) {
       av_packet_free(&targetPkt);
     }
+    
+    if (codecCtx != nullptr) {
+      avcodec_free_context(&codecCtx);
+    }
 
     //very important here.
     for (auto& p : packetList) {

@@ -90,7 +90,13 @@ class PacketGrabber {
   int audioIndex = -1;
 
  public:
-  ~PacketGrabber() { cout << "~PacketGrabber called." << endl; }
+  ~PacketGrabber() { 
+    if (formatCtx != nullptr) {
+      avformat_free_context(formatCtx);
+      formatCtx = nullptr;
+    }
+    cout << "~PacketGrabber called." << endl; 
+  }
   PacketGrabber(const string& uri) : inputUrl(uri) {
     formatCtx = avformat_alloc_context();
 

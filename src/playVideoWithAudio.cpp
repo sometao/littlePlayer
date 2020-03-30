@@ -119,7 +119,7 @@ void playSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
   int failCount = 0;
   int fastCount = 0;
   int slowCount = 0;
-  while (true) {
+  while (!vProcessor.isStreamFinished()) {
     SDL_WaitEvent(&event);
 
     if (event.type == REFRESH_EVENT) {
