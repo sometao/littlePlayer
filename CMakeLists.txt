@@ -16,18 +16,9 @@ IF(MSVC)
 ENDIF(MSVC)
 
 
-set(CMAKE_INCLUDE_PATH 
-	"C:/tools/ffmpeg-4.2.2/include"
-	"C:/tools/SDL2-2.0.10/include"
-	"C:/Program Files (x86)/OpenAL 1.1 SDK/include"
-)
 
-set(CMAKE_LIBRARY_PATH 
-	"C:/tools/ffmpeg-4.2.2/lib"
-	"C:/tools/SDL2-2.0.10/lib"
-	"C:/Program Files (x86)/OpenAL 1.1 SDK/libs/Win64"
-)
 
+include(./.SET_LOCAL_PATH.cmake)
 
 #set(CMAKE_PREFIX_PATH
 #	"C:/tools/ffmpeg-4.2.2"
