@@ -15,10 +15,31 @@ IF(MSVC)
     SET(CMAKE_CXX_FLAGS "/EHsc")  # deal with MSVC Warning C4530
 ENDIF(MSVC)
 
+
+set(CMAKE_INCLUDE_PATH 
+	"C:/tools/ffmpeg-4.2.2/include"
+	"C:/tools/SDL2-2.0.10/include"
+	"C:/Program Files (x86)/OpenAL 1.1 SDK/include"
+)
+
+set(CMAKE_LIBRARY_PATH 
+	"C:/tools/ffmpeg-4.2.2/lib"
+	"C:/tools/SDL2-2.0.10/lib"
+	"C:/Program Files (x86)/OpenAL 1.1 SDK/libs/Win64"
+)
+
+
+#set(CMAKE_PREFIX_PATH
+#	"C:/tools/ffmpeg-4.2.2"
+#	"C:/tools/SDL2-2.0.10"
+#	"C:/Program Files (x86)/OpenAL 1.1 SDK"
+#)
+
+
 ######################################
 #  FFmpeg lib setting
 ######################################
-#make sure ffmpeg/bin is in your PATH.
+#make sure ffmpeg/bin is in your PATH to RUN.
 
 find_path(AVCODEC_INCLUDE_DIR libavcodec/avcodec.h)
 find_library(AVCODEC_LIBRARY avcodec)
@@ -45,13 +66,20 @@ find_path(SWSCALE_INCLUDE_DIR libswscale/swscale.h)
 find_library(SWSCALE_LIBRARY swscale)
 
 
+
+
 ######################################
 #  SDL2 lib setting
 ######################################
 #make sure SDL2.dll is in your PATH.
 
-set(SDL_INCLUDE_DIR "C:/tools/SDL2-2.0.10/include")
-set(SDL_LIBRARY "C:/tools/SDL2-2.0.10/lib/x64/SDL2.lib")
+# set(SDL_INCLUDE_DIR "C:/tools/SDL2-2.0.10/include")
+# set(SDL_LIBRARY "C:/tools/SDL2-2.0.10/lib/x64/SDL2.lib")
+
+find_path(SDL_INCLUDE_DIR "SDL2/SDL.h")
+find_library(SDL_LIBRARY SDL2.lib)
+
+
 
 
 
@@ -60,8 +88,12 @@ set(SDL_LIBRARY "C:/tools/SDL2-2.0.10/lib/x64/SDL2.lib")
 ######################################
 #make sure openAL32.dll is in your PATH.
 
-set(OpenAL_INCLUDE_DIR "C:/Program Files (x86)/OpenAL 1.1 SDK/include")
-set(OpenAL_LIBRARY "C:/Program Files (x86)/OpenAL 1.1 SDK/libs/Win64/OpenAL32.lib")
+#set(OpenAL_INCLUDE_DIR "C:/Program Files (x86)/OpenAL 1.1 SDK/include")
+#set(OpenAL_LIBRARY "C:/Program Files (x86)/OpenAL 1.1 SDK/libs/Win64/OpenAL32.lib")
+
+find_path(OpenAL_INCLUDE_DIR "OpenAL/al.h")
+find_library(OpenAL_LIBRARY "OpenAL32.lib")
+
 
 
 
@@ -72,6 +104,14 @@ set(OpenAL_LIBRARY "C:/Program Files (x86)/OpenAL 1.1 SDK/libs/Win64/OpenAL32.li
 message(CMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR})
 message(PROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR})
 
+message("--------------------")
+message(CMAKE_INCLUDE_PATH=${CMAKE_INCLUDE_PATH})
+message(CMAKE_LIBRARY_PATH=${CMAKE_LIBRARY_PATH})
+message(CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH})
+
+
+
+message("--------------------")
 message("FFMPEG INFORMATION")
 message("--------------------")
 message(AVCODEC_INCLUDE_DIR=${AVCODEC_INCLUDE_DIR})
@@ -97,6 +137,12 @@ message(SWRESAMPLE_LIBRARY=${SWRESAMPLE_LIBRARY})
 message("--------------------")
 message(SWSCALE_INCLUDE_DIR=${SWSCALE_INCLUDE_DIR})
 message(SWSCALE_LIBRARY=${SWSCALE_LIBRARY})
+message("--------------------")
+message(SDL_INCLUDE_DIR=${SDL_INCLUDE_DIR})
+message(SDL_LIBRARY=${SDL_LIBRARY})
+message("--------------------")
+message(OpenAL_INCLUDE_DIR=${OpenAL_INCLUDE_DIR})
+message(OpenAL_LIBRARY=${OpenAL_LIBRARY})
 
 
 ############################################
@@ -126,7 +172,6 @@ target_include_directories( ${PROJECT_NAME}
 		${SWSCALE_INCLUDE_DIR}
 		${SDL_INCLUDE_DIR}
 		${OpenAL_INCLUDE_DIR}
-
 )
 
 target_link_libraries( ${PROJECT_NAME}  

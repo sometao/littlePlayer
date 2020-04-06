@@ -42,6 +42,8 @@ int initSource(ALuint* pSource) {
   alSourcefv(uiSource, AL_VELOCITY, SourceVel);
   alSourcef(uiSource, AL_REFERENCE_DISTANCE, 50.0f);
   alSourcei(uiSource, AL_LOOPING, AL_FALSE);
+
+  return 0;
 }
 
 void feedAudioData(FrameGrabber* grabber, ffmpegUtil::ReSampler* reSampler, ALuint uiSource,

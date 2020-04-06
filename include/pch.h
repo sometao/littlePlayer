@@ -33,7 +33,7 @@ extern "C" {
 #endif
 
 extern "C" {
-#include "sdl2/SDL.h"
+#include "SDL2/SDL.h"
 };
 
 #include <iostream>
