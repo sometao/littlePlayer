@@ -38,6 +38,6 @@ Read file and play.
 - [X] Read media file and draw picture using SDL.
 - [X] Read mp3 file and play it.
 - [X] Play video with audio.
-- [ ] play file with audio only or video only.
+- [X] play file with audio only or video only.
 
 
