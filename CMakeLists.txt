@@ -19,12 +19,22 @@ ENDIF(MSVC)
 
 
 include(./.SET_LOCAL_PATH.cmake)
-
-#set(CMAKE_PREFIX_PATH
-#	"C:/tools/ffmpeg-4.2.2"
-#	"C:/tools/SDL2-2.0.10"
-#	"C:/Program Files (x86)/OpenAL 1.1 SDK"
+#----------------------------------------------
+#  Content in my '.SET_LOCAL_PATH.cmake' file.
+#----------------------------------------------
+#set(CMAKE_INCLUDE_PATH 
+#	"C:/tools/ffmpeg-4.2.2/include"
+#	"C:/tools/SDL2-2.0.10/include"
+#	"C:/Program Files (x86)/OpenAL 1.1 SDK/include"
 #)
+#
+#set(CMAKE_LIBRARY_PATH 
+#	"C:/tools/ffmpeg-4.2.2/lib"
+#	"C:/tools/SDL2-2.0.10/lib"
+#	"C:/Program Files (x86)/OpenAL 1.1 SDK/libs/Win64"
+#)
+
+
 
 
 ######################################
@@ -87,7 +97,6 @@ find_library(OpenAL_LIBRARY "OpenAL32.lib")
 
 
 
-
 ######################################
 #  information
 ######################################
@@ -140,13 +149,10 @@ message(OpenAL_LIBRARY=${OpenAL_LIBRARY})
 # Add source to this project's executable.
 ############################################
 add_executable (${PROJECT_NAME} 
-	src/main.cpp
-	src/pch.cpp
-	src/ffmpegUtil.cpp
-	src/playVideo.cpp
-	src/playAudioByOpenAL.cpp
-	src/playAudioBySDL.cpp
-	src/playVideoWithAudio.cpp
+	"src/main.cpp"
+	"src/pch.cpp"
+	"src/ffmpegUtil.cpp"
+	"src/playVideoWithAudio.cpp"
 )
 
 
