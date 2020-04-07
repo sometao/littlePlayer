@@ -151,7 +151,6 @@ message(OpenAL_LIBRARY=${OpenAL_LIBRARY})
 add_executable (${PROJECT_NAME} 
 	"src/main.cpp"
 	"src/pch.cpp"
-	"src/ffmpegUtil.cpp"
 	"src/playVideoWithAudio.cpp"
 )
 
