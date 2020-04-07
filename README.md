@@ -14,10 +14,10 @@ Read file and play.
 
 
 #### for test
-- main.cpp Ϊ���;
-- �޸�main�����е�ע��
-- testPlayVideo ��������Ƶ�������Լ���·�����޸�inputPath
-- testPlayAudio ��������Ƶ�������Լ���·�����޸�inputPath
+- 修改CMakeLists.txt的add_executable部分，把test路径下的cpp文件加入
+- main.cpp, 修改main方法，使其调用test路径下的runTest.cpp
+- testPlayVideo 仅播放视频，根据自己的路径，修改inputPath
+- testPlayAudio 仅播放音频，根据自己的路径，修改inputPath
 
 
 

@@ -328,11 +328,6 @@ int play(const string& inputFile) {
   cout << "videoThread join." << endl;
   videoThread.join();
 
-  int aa1 = 1;
-  int aa2 = 1;
-  int aa3 = 1;
-
-
   SDL_PauseAudioDevice(audioDeviceID, 1);
   SDL_CloseAudio();
 
