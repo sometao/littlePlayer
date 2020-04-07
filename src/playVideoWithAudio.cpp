@@ -153,20 +153,20 @@ void playSdlVideo(VideoProcessor& vProcessor, AudioProcessor* audio = nullptr) {
 
       // Use this function to update a rectangle within a planar
       // YV12 or IYUV texture with new pixel data.
-      auto pic = vProcessor.getFrame();
+      AVFrame* frame = vProcessor.getFrame();
 
-      if (pic != nullptr) {
+      if (frame != nullptr) {
         SDL_UpdateYUVTexture(sdlTexture,  // the texture to update
                              NULL,        // a pointer to the rectangle of pixels to update, or
                                           // NULL to update the entire texture
-                             pic->data[0],      // the raw pixel data for the Y plane
-                             pic->linesize[0],  // the number of bytes between rows of pixel
+                             frame->data[0],      // the raw pixel data for the Y plane
+                             frame->linesize[0],  // the number of bytes between rows of pixel
                                                 // data for the Y plane
-                             pic->data[1],      // the raw pixel data for the U plane
-                             pic->linesize[1],  // the number of bytes between rows of pixel
+                             frame->data[1],      // the raw pixel data for the U plane
+                             frame->linesize[1],  // the number of bytes between rows of pixel
                                                 // data for the U plane
-                             pic->data[2],      // the raw pixel data for the V plane
-                             pic->linesize[2]   // the number of bytes between rows of pixel
+                             frame->data[2],      // the raw pixel data for the V plane
+                             frame->linesize[2]   // the number of bytes between rows of pixel
                                                 // data for the V plane
         );
         SDL_RenderClear(sdlRenderer);
