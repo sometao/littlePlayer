@@ -155,6 +155,7 @@ class PacketGrabber {
   int getVideoIndex() const { return videoIndex; }
 };
 
+
 class FrameGrabber {
   const string inputUrl;
 
@@ -306,9 +307,9 @@ class FrameGrabber {
     }
   };
 
- public:
+public:
   FrameGrabber(const string& uri, bool enableVideo = true, bool enableAudio = true)
-      : inputUrl(uri), videoEnabled(enableVideo), audioEnabled(enableAudio) {
+    : inputUrl(uri), videoEnabled(enableVideo), audioEnabled(enableAudio) {
     formatCtx = avformat_alloc_context();
   }
 
@@ -371,7 +372,7 @@ class FrameGrabber {
   double getFrameRate() const {
     if (formatCtx != nullptr) {
       AVRational frame_rate =
-          av_guess_frame_rate(formatCtx, formatCtx->streams[videoIndex], NULL);
+        av_guess_frame_rate(formatCtx, formatCtx->streams[videoIndex], NULL);
       double fr = frame_rate.num && frame_rate.den ? av_q2d(frame_rate) : 0.0;
       return fr;
     } else {
@@ -614,6 +615,8 @@ class FrameGrabber {
     // TODO implement.
   }
 };
+
+
 
 struct AudioInfo {
   int64_t layout;

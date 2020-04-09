@@ -8,6 +8,7 @@
 #include <iomanip>
 
 #include "ffmpegUtil.h"
+#include "test/FrameGrabber.h"
 
 extern "C" {
 #include <libswresample/swresample.h>

@@ -1,6 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include "ffmpegUtil.h"
+#include "test/FrameGrabber.h"
+
+
 
 extern "C" {
 #include "SDL2/SDL.h"

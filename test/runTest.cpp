@@ -2,6 +2,7 @@
 #include <fstream>
 //#include "FrameGrabber.h"
 #include "ffmpegUtil.h"
+#include "test/FrameGrabber.h"
 
 
 using std::string;
