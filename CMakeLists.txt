@@ -77,7 +77,7 @@ find_library(SWSCALE_LIBRARY swscale)
 # set(SDL_INCLUDE_DIR "C:/tools/SDL2-2.0.10/include")
 # set(SDL_LIBRARY "C:/tools/SDL2-2.0.10/lib/x64/SDL2.lib")
 
-find_path(SDL_INCLUDE_DIR "SDL2/SDL.h")
+find_path(SDL_INCLUDE_DIR "SDL/SDL.h")
 find_library(SDL_LIBRARY SDL2.lib)
 
 

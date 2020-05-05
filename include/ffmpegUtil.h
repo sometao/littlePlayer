@@ -97,9 +97,10 @@ class PacketGrabber {
     }
     cout << "~PacketGrabber called." << endl; 
   }
-  PacketGrabber(const string& uri) : inputUrl(uri) {
-    formatCtx = avformat_alloc_context();
 
+  PacketGrabber(const string& uri) : inputUrl(uri) {
+
+    formatCtx = avformat_alloc_context();
     if (avformat_open_input(&formatCtx, inputUrl.c_str(), NULL, NULL) != 0) {
       string errorMsg = "Can not open input file:";
       errorMsg += inputUrl;

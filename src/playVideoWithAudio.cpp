@@ -10,7 +10,7 @@
 #include "MediaProcessor.hpp"
 
 extern "C" {
-#include "SDL2/SDL.h"
+#include "SDL/SDL.h"
 };
 
 // Refresh Event
