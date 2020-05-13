@@ -1,3 +1,8 @@
+/**
+@author Tao Zhang
+@since 2020/3/1
+@version 0.0.1-SNAPSHOT 2020/5/13
+*/
 #pragma once
 
 #ifdef _WIN32
@@ -54,7 +59,7 @@ struct ffUtils {
 
     if (codec == nullptr) {
       string errorMsg = "Could not find codec: ";
-      errorMsg += (*ctx)->codec_id;
+      errorMsg += f->streams[streamIndex]->codecpar->codec_id;
       cout << errorMsg << endl;
       throw std::runtime_error(errorMsg);
     }

@@ -1,3 +1,8 @@
+/**
+@author Tao Zhang
+@since 2020/3/1
+@version 0.0.1-SNAPSHOT 2020/5/13
+*/
 #include "pch.h"
 #include "ffmpegUtil.h"
 
